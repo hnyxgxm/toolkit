@@ -1,12 +1,19 @@
 import { describe, it, expect } from "vitest";
 import {
   BATCH_MAX_LINES,
+  DEFAULT_QR_SETTINGS,
   LOGO_SIZE_RATIO,
+  QR_CONTRAST_BAD,
+  QR_CONTRAST_MIN,
   QR_TEXT_MAX_CHARS,
+  contrastRatio,
+  contrastRisk,
   ensureStandaloneSvg,
   logoBox,
   parseBatchLines,
   qrDownloadFileName,
+  relativeLuminance,
+  sanitizeQrSettings,
   suggestLevel,
   svgInvariantErrors,
 } from "@/lib/qrcode";
@@ -145,5 +152,113 @@ describe("svg export invariants", () => {
     expect(svgInvariantErrors("<div></div>").length).toBeGreaterThan(0);
     expect(svgInvariantErrors('<svg viewBox="0 0 1 1"><rect/></svg>').length).toBeGreaterThan(0);
     expect(svgInvariantErrors('<svg viewBox="0 0 1 1"><path d=""/></svg>').length).toBeGreaterThan(0);
+  });
+});
+
+describe("qr color contrast (lib pure functions)", () => {
+  it("relativeLuminance: black 0, white 1, mid-gray in between", () => {
+    expect(relativeLuminance("#000000")).toBe(0);
+    expect(relativeLuminance("#ffffff")).toBe(1);
+    const gray = relativeLuminance("#808080");
+    expect(gray).toBeGreaterThan(0.2);
+    expect(gray).toBeLessThan(0.25);
+  });
+
+  it("relativeLuminance supports 3-digit hex and falls back to 0 on invalid input", () => {
+    expect(relativeLuminance("#fff")).toBe(1);
+    expect(relativeLuminance("not-a-color")).toBe(0);
+    expect(relativeLuminance("")).toBe(0);
+  });
+
+  it("contrastRatio matches WCAG reference values and is order-independent", () => {
+    expect(contrastRatio("#000000", "#ffffff")).toBeCloseTo(21, 5);
+    expect(contrastRatio("#ffffff", "#000000")).toBeCloseTo(21, 5);
+    expect(contrastRatio("#999999", "#ffffff")).toBeGreaterThan(2);
+    expect(contrastRatio("#999999", "#ffffff")).toBeLessThan(3);
+  });
+
+  it("contrastRisk flags bad / warn / ok levels with messages", () => {
+    expect(QR_CONTRAST_BAD).toBe(2);
+    expect(QR_CONTRAST_MIN).toBe(3);
+
+    const bad = contrastRisk("#777777", "#888888");
+    expect(bad.level).toBe("bad");
+    expect(bad.message).toContain("对比度过低");
+
+    const warn = contrastRisk("#999999", "#ffffff");
+    expect(warn.level).toBe("warn");
+    expect(warn.message).toContain("对比度偏低");
+
+    const ok = contrastRisk("#111111", "#ffffff");
+    expect(ok.level).toBe("ok");
+    expect(ok.message).toBeUndefined();
+  });
+
+  it("contrastRisk warns on inverted (light modules on dark background) colors", () => {
+    const inv = contrastRisk("#ffffff", "#0a0a0b");
+    expect(inv.inverted).toBe(true);
+    // #0a0a0b 并非纯黑，比率约 19.8:1，仍远高于阈值
+    expect(inv.ratio).toBeGreaterThan(19);
+    expect(inv.level).toBe("ok");
+    expect(inv.message).toContain("反色");
+
+    const normal = contrastRisk("#111111", "#ffffff");
+    expect(normal.inverted).toBe(false);
+    expect(normal.message).toBeUndefined();
+  });
+});
+
+describe("logoBox with custom ratio (logo size slider)", () => {
+  it("honors custom ratio and clamps it into the geometric-safe range", () => {
+    expect(logoBox(256, 0.3).box).toBe(Math.round(256 * 0.3));
+    expect(logoBox(256, 0.9).box).toBe(Math.round(256 * 0.35)); // 上限钳制
+    expect(logoBox(256, 0.01).box).toBe(Math.round(256 * 0.1)); // 下限钳制
+    expect(logoBox(256, Number.NaN).box).toBe(Math.round(256 * LOGO_SIZE_RATIO)); // 非法回退默认
+    expect(logoBox(256).box).toBe(Math.round(256 * LOGO_SIZE_RATIO)); // 默认行为不变
+  });
+
+  it("keeps a nonzero inner pad for any ratio", () => {
+    for (const r of [0.1, 0.15, 0.22, 0.3, 0.35]) {
+      const { box, pad } = logoBox(512, r);
+      expect(box).toBeGreaterThan(0);
+      expect(pad).toBeGreaterThan(0);
+      expect(pad * 2).toBeLessThan(box / 2);
+    }
+  });
+});
+
+describe("qr settings persistence (localStorage params, no generated content)", () => {
+  it("sanitizeQrSettings keeps valid values untouched", () => {
+    const s = sanitizeQrSettings({ size: 384, margin: 4, level: "H", fg: "#123abc", bg: "#ffffff", logoScale: 0.25 });
+    expect(s).toEqual({ size: 384, margin: 4, level: "H", fg: "#123abc", bg: "#ffffff", logoScale: 0.25 });
+  });
+
+  it("clamps out-of-range values and falls back for invalid ones", () => {
+    const c = sanitizeQrSettings({ size: 9999, margin: -3, level: "X", fg: "red", bg: 123, logoScale: 5 });
+    expect(c.size).toBe(512);
+    expect(c.margin).toBe(0);
+    expect(c.level).toBe("Q");
+    expect(c.fg).toBe(DEFAULT_QR_SETTINGS.fg);
+    expect(c.bg).toBe(DEFAULT_QR_SETTINGS.bg);
+    expect(c.logoScale).toBe(0.3); // 离谱越界值钳制到上限 30%
+    const small = sanitizeQrSettings({ logoScale: 0.01 });
+    expect(small.logoScale).toBe(0.15); // 低于下限钳制到 15%
+  });
+
+  it("falls back to defaults for garbage input (null / string / undefined)", () => {
+    expect(sanitizeQrSettings(null)).toEqual(DEFAULT_QR_SETTINGS);
+    expect(sanitizeQrSettings(undefined)).toEqual(DEFAULT_QR_SETTINGS);
+    expect(sanitizeQrSettings("junk")).toEqual(DEFAULT_QR_SETTINGS);
+    expect(sanitizeQrSettings([1, 2])).toEqual(DEFAULT_QR_SETTINGS);
+  });
+
+  it("round-trips through JSON like localStorage would", () => {
+    const s = sanitizeQrSettings({ size: 320, margin: 3, level: "M", fg: "#0a0a0b", bg: "#f5f5f5", logoScale: 0.2 });
+    expect(sanitizeQrSettings(JSON.parse(JSON.stringify(s)))).toEqual(s);
+  });
+
+  it("defaults to level Q and dark-on-light colors", () => {
+    expect(DEFAULT_QR_SETTINGS.level).toBe("Q");
+    expect(relativeLuminance(DEFAULT_QR_SETTINGS.fg)).toBeLessThan(relativeLuminance(DEFAULT_QR_SETTINGS.bg));
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderMarkdown } from "@/lib/markdown";
+import { renderMarkdown, extractOutline, applyMdAction } from "@/lib/markdown";
 
 describe("markdown gfm 表格", () => {
   it("渲染列数、表头与表体", () => {
@@ -170,5 +170,98 @@ describe("markdown 行内补充语法", () => {
 
   it("显式 <https://…> 自动链接", () => {
     expect(renderMarkdown("看 <https://example.com/x>")).toContain('<a href="https://example.com/x"');
+  });
+});
+
+/* ---------- 大纲目录 ---------- */
+
+describe("markdown 大纲提取", () => {
+  it("提取标题层级/文本/行号，代码块内标题忽略", () => {
+    const src = "# 标题一\n\n正文\n\n## 子标题\n\n```\n# 不是标题\n```\n### 深层";
+    expect(extractOutline(src)).toEqual([
+      { level: 1, text: "标题一", id: "md-h-0", line: 0 },
+      { level: 2, text: "子标题", id: "md-h-1", line: 4 },
+      { level: 3, text: "深层", id: "md-h-2", line: 9 },
+    ]);
+  });
+
+  it("id 与 renderMarkdown 输出的标题 id 一致", () => {
+    const src = "## A\n\n### B";
+    const ol = extractOutline(src);
+    const html = renderMarkdown(src);
+    for (const it of ol) expect(html).toContain(`id="${it.id}"`);
+    expect(html).toContain('<h2 id="md-h-0"');
+    expect(html).toContain('<h3 id="md-h-1"');
+  });
+
+  it("无标题返回空数组", () => {
+    expect(extractOutline("正文\n没有标题")).toEqual([]);
+  });
+});
+
+/* ---------- 编辑器动作 ---------- */
+
+describe("markdown 编辑动作", () => {
+  it("加粗：无选区插入占位并选中占位文本", () => {
+    const r = applyMdAction("ab", 1, 1, "bold");
+    expect(r.text).toBe("a**加粗文本**b");
+    expect(r.selStart).toBe(3);
+    expect(r.selEnd).toBe(7);
+  });
+
+  it("加粗：有选区包裹并选中原文", () => {
+    const r = applyMdAction("say hi!", 4, 6, "bold");
+    expect(r.text).toBe("say **hi**!");
+    expect(r.selStart).toBe(6);
+    expect(r.selEnd).toBe(8);
+  });
+
+  it("加粗：二次执行解除包裹（toggle）", () => {
+    const once = applyMdAction("hi", 0, 2, "bold");
+    expect(once.text).toBe("**hi**");
+    const twice = applyMdAction(once.text, once.selStart, once.selEnd, "bold");
+    expect(twice.text).toBe("hi");
+    expect(twice.selStart).toBe(0);
+    expect(twice.selEnd).toBe(2);
+  });
+
+  it("斜体与行内代码同理", () => {
+    expect(applyMdAction("x", 1, 1, "italic").text).toBe("x*斜体文本*");
+    expect(applyMdAction("x", 1, 1, "code").text).toBe("x`代码`");
+  });
+
+  it("链接：包住选区并选中 URL 占位", () => {
+    const r = applyMdAction("点这里", 0, 3, "link");
+    expect(r.text).toBe("[点这里](https://)");
+    expect(r.text.slice(r.selStart, r.selEnd)).toBe("https://");
+  });
+
+  it("标题：为选区内各行加前缀，再次执行移除", () => {
+    const r1 = applyMdAction("第一行\n第二行", 0, 8, "h2");
+    expect(r1.text).toBe("## 第一行\n## 第二行");
+    const r2 = applyMdAction(r1.text, 0, r1.text.length, "h2");
+    expect(r2.text).toBe("第一行\n第二行");
+  });
+
+  it("无序列表与有序列表（编号按行递增，可 toggle 移除）", () => {
+    expect(applyMdAction("a\nb\nc", 0, 5, "ul").text).toBe("- a\n- b\n- c");
+    const r2 = applyMdAction("a\nb", 0, 3, "ol");
+    expect(r2.text).toBe("1. a\n2. b");
+    expect(applyMdAction(r2.text, 0, r2.text.length, "ol").text).toBe("a\nb");
+  });
+
+  it("引用前缀", () => {
+    expect(applyMdAction("hi", 0, 2, "quote").text).toBe("> hi");
+  });
+
+  it("表格：插入模板并补前置换行，选中首格", () => {
+    const r = applyMdAction("正文", 2, 2, "table");
+    expect(r.text).toBe("正文\n| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |\n");
+    expect(r.text.slice(r.selStart, r.selEnd)).toBe("列1");
+  });
+
+  it("越界下标被钳制；start > end 时交换", () => {
+    expect(applyMdAction("hi", -5, 99, "bold").text).toBe("**hi**");
+    expect(applyMdAction("hi", 2, 0, "bold").text).toBe("**hi**");
   });
 });

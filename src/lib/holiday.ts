@@ -138,3 +138,218 @@ export function getHolidaySummary(year: number): HolidaySummary | null {
     offDateSetMs,
   };
 }
+
+/* ==================== 全年月历矩阵（纯函数） ==================== */
+
+export type DayStatus = "off" | "makeup" | "weekend" | "workday";
+
+export interface CalendarCell {
+  iso: string;
+  day: number;
+  /** 0=周日 … 6=周六 */
+  weekday: number;
+  status: DayStatus;
+  /** off / makeup 时所属假期名 */
+  festival: string;
+  /** 是否为该假期放假区间第一天（用于把节日名标进格子） */
+  festivalStart: boolean;
+}
+
+export interface MonthGrid {
+  year: number;
+  /** 1-12 */
+  month: number;
+  /** 周日起的 7 列网格，首周空位补 null */
+  cells: Array<CalendarCell | null>;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+function toUtcMs(iso: string): number {
+  const [y, m, d] = iso.split("-").map(Number);
+  return Date.UTC(y, m - 1, d);
+}
+
+function isoWeekday(iso: string): number {
+  return new Date(toUtcMs(iso)).getUTCDay();
+}
+
+interface YearIndex {
+  off: Map<string, { name: string; start: boolean }>;
+  makeup: Map<string, string>;
+}
+
+function buildYearIndex(year: number): YearIndex {
+  const data = HOLIDAY_DATA[year];
+  const off = new Map<string, { name: string; start: boolean }>();
+  const makeup = new Map<string, string>();
+  if (!data) return { off, makeup };
+  for (const f of data.festivals) {
+    f.off.forEach((range, ri) => {
+      for (const iso of expandRange(range)) {
+        off.set(iso, { name: f.name, start: ri === 0 && iso === range[0] });
+      }
+    });
+    for (const m of f.makeup) makeup.set(m, f.name);
+  }
+  return { off, makeup };
+}
+
+function buildMonthGrid(year: number, month: number, index: YearIndex): MonthGrid {
+  const first = isoWeekday(`${year}-${pad2(month)}-01`);
+  const total = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const len = Math.ceil((first + total) / 7) * 7;
+  const cells: Array<CalendarCell | null> = [];
+  for (let i = 0; i < len; i++) {
+    if (i < first) {
+      cells.push(null);
+      continue;
+    }
+    const day = i - first + 1;
+    const iso = `${year}-${pad2(month)}-${pad2(day)}`;
+    const weekday = i % 7;
+    let status: DayStatus = weekday === 0 || weekday === 6 ? "weekend" : "workday";
+    let festival = "";
+    let festivalStart = false;
+    const offHit = index.off.get(iso);
+    if (offHit) {
+      status = "off";
+      festival = offHit.name;
+      festivalStart = offHit.start;
+    } else if (index.makeup.has(iso)) {
+      status = "makeup";
+      festival = index.makeup.get(iso)!;
+    }
+    cells.push({ iso, day, weekday, status, festival, festivalStart });
+  }
+  return { year, month, cells };
+}
+
+/** 全年 12 个月的日历状态矩阵（周末 < 补班 < 法定假 的优先级覆盖） */
+export function buildYearGrids(year: number): MonthGrid[] {
+  const index = buildYearIndex(year);
+  return Array.from({ length: 12 }, (_, i) => buildMonthGrid(year, i + 1, index));
+}
+
+/** 查某日期所属假期及角色；不属于任何假期返回 null */
+export function findFestivalForDate(
+  year: number,
+  iso: string
+): { festival: Festival; role: "off" | "makeup" } | null {
+  const data = HOLIDAY_DATA[year];
+  if (!data) return null;
+  for (const f of data.festivals) {
+    if (f.off.some((r) => expandRange(r).includes(iso))) return { festival: f, role: "off" };
+    if (f.makeup.includes(iso)) return { festival: f, role: "makeup" };
+  }
+  return null;
+}
+
+/** 「2月15日–2月23日放假共9天，2月14日、2月28日补班」——弹层/读屏都可用的完整描述 */
+export function formatFestivalSpan(f: Festival): string {
+  const from = f.off[0][0];
+  const to = f.off[f.off.length - 1][1];
+  const days = f.off.reduce((s, r) => s + expandRange(r).length, 0);
+  const fmt = (iso: string) => {
+    const [, m, d] = iso.split("-");
+    return `${Number(m)}月${Number(d)}日`;
+  };
+  const range = from === to ? fmt(from) : `${fmt(from)}–${fmt(to)}`;
+  let out = `${range}放假共${days}天`;
+  if (f.makeup.length) out += `，${f.makeup.map(fmt).join("、")}补班`;
+  return out;
+}
+
+/* ==================== 倒计时（按客户端日期计算，纯函数） ==================== */
+
+export interface HolidayCountdown {
+  name: string;
+  iso: string;
+  /** 0 表示就是今天 */
+  days: number;
+}
+
+function scanNext(todayIso: string, kind: "off" | "makeup"): HolidayCountdown | null {
+  const years = Object.keys(HOLIDAY_DATA)
+    .map(Number)
+    .sort((a, b) => a - b);
+  let best: { name: string; iso: string } | null = null;
+  for (const y of years) {
+    for (const f of HOLIDAY_DATA[y].festivals) {
+      const dates = kind === "off" ? f.off.flatMap(expandRange) : f.makeup;
+      for (const iso of dates) {
+        if (iso >= todayIso && (!best || iso < best.iso)) best = { name: f.name, iso };
+      }
+    }
+  }
+  if (!best) return null;
+  return { ...best, days: Math.round((toUtcMs(best.iso) - toUtcMs(todayIso)) / DAY) };
+}
+
+/** 距下一个已公布假期（含今天开始的情况） */
+export function getNextHoliday(todayIso: string): HolidayCountdown | null {
+  return scanNext(todayIso, "off");
+}
+
+/** 距下一个已公布补班日 */
+export function getNextMakeup(todayIso: string): HolidayCountdown | null {
+  return scanNext(todayIso, "makeup");
+}
+
+/** 客户端本地时区的今天（YYYY-MM-DD）。SSR 侧不要调用，交给 useEffect 挂载后再取 */
+export function getTodayIso(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+/* ==================== .ics 导出（纯前端字符串拼装） ==================== */
+
+function icsEscape(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+}
+
+function addDays(iso: string, n: number): string {
+  return new Date(toUtcMs(iso) + n * DAY).toISOString().slice(0, 10);
+}
+
+/** 全年放假+补班导出为 VCALENDAR；未公布年份返回空串（不编造） */
+export function buildYearIcs(year: number): string {
+  const data = HOLIDAY_DATA[year];
+  if (!data || !data.official) return "";
+  const lines: string[] = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//toolkit//holiday//CN",
+    "CALSCALE:GREGORIAN",
+    `X-WR-CALNAME:${icsEscape(`${year}年中国法定节假日`)}`,
+  ];
+  const stamp = "DTSTAMP:19700101T000000Z";
+  for (const f of data.festivals) {
+    const desc = icsEscape(`${data.source}（数据核对至 ${data.lastVerified}）`);
+    for (const [from, to] of f.off) {
+      lines.push(
+        "BEGIN:VEVENT",
+        `UID:${from.replace(/-/g, "")}-${to.replace(/-/g, "")}-off@toolkit`,
+        stamp,
+        `DTSTART;VALUE=DATE:${from.replace(/-/g, "")}`,
+        `DTEND;VALUE=DATE:${addDays(to, 1).replace(/-/g, "")}`,
+        `SUMMARY:${icsEscape(`${f.name}·放假`)}`,
+        `DESCRIPTION:${desc}`,
+        "END:VEVENT"
+      );
+    }
+    for (const m of f.makeup) {
+      lines.push(
+        "BEGIN:VEVENT",
+        `UID:${m.replace(/-/g, "")}-makeup@toolkit`,
+        stamp,
+        `DTSTART;VALUE=DATE:${m.replace(/-/g, "")}`,
+        `DTEND;VALUE=DATE:${addDays(m, 1).replace(/-/g, "")}`,
+        `SUMMARY:${icsEscape(`${f.name}·补班`)}`,
+        `DESCRIPTION:${desc}`,
+        "END:VEVENT"
+      );
+    }
+  }
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n") + "\r\n";
+}

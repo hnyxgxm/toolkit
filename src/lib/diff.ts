@@ -20,6 +20,10 @@ export type DiffLineType = "same" | "add" | "del";
 export interface DiffLine {
   type: DiffLineType;
   text: string;
+  /** 该行在原始 A 序列中的下标（0 基；same/del 行存在） */
+  aIdx?: number;
+  /** 该行在原始 B 序列中的下标（0 基；same/add 行存在） */
+  bIdx?: number;
 }
 
 export interface DiffStats {
@@ -321,22 +325,239 @@ export function diffLines(a: string[], b: string[]): DiffLine[] {
   return out;
 }
 
-/** 文本级入口：按行拆分 → 超限截断（带 trunc 标记）→ diff → 统计。 */
+/** 文本级入口：按行拆分 → 超限截断（带 trunc 标记）→ diff → 统计。
+ *  输出行附带 aIdx/bIdx（原始行下标），供双栏视图显示行号。 */
 export function diffText(aText: string, bText: string, opts?: { maxLines?: number }): DiffResult {
-  const maxLines = Math.max(1, opts?.maxLines ?? MAX_LINES);
-  const la = aText.split("\n");
-  const lb = bText.split("\n");
-  const trunc = la.length > maxLines || lb.length > maxLines;
-  const a = trunc ? la.slice(0, maxLines) : la;
-  const b = trunc ? lb.slice(0, maxLines) : lb;
-  const lines = diffLines(a, b);
+  return diffTextWithOptions(aText, bText, opts);
+}
+
+/* ---------- 忽略选项（归一化比较，映射回原行） ---------- */
+
+export interface DiffOptions {
+  /** 忽略大小写（仅用于比较，展示仍为原文） */
+  ignoreCase?: boolean;
+  /** 忽略行尾空白 */
+  ignoreTrailingWs?: boolean;
+  /** 忽略空行（两侧的空行 / 纯空白行不参与对比） */
+  ignoreBlankLines?: boolean;
+}
+
+/** 单行归一化：仅用于比较，不改写展示文本 */
+export function normalizeLine(line: string, opts: Pick<DiffOptions, "ignoreCase" | "ignoreTrailingWs">): string {
+  let t = line;
+  if (opts.ignoreTrailingWs) t = t.replace(/\s+$/, "");
+  if (opts.ignoreCase) t = t.toLowerCase();
+  return t;
+}
+
+/** 把 diff 输出映射回原始行：same/del 取 A 侧原文、add 取 B 侧原文，
+ *  并按 diffLines 的输出顺序消耗两侧下标（其不变式保证映射无损），随后统计。 */
+function finishDiff(
+  raw: DiffLine[],
+  aRaw: string[],
+  bRaw: string[],
+  mapA: number[],
+  mapB: number[],
+  trunc: boolean,
+): DiffResult {
+  let ia = 0;
+  let ib = 0;
   let same = 0;
   let add = 0;
   let del = 0;
-  for (const l of lines) {
-    if (l.type === "same") same++;
-    else if (l.type === "add") add++;
-    else del++;
-  }
+  const lines = raw.map((l): DiffLine => {
+    if (l.type === "same") {
+      const ai = mapA[ia++];
+      const bi = mapB[ib++];
+      same++;
+      return { type: "same", text: aRaw[ai], aIdx: ai, bIdx: bi };
+    }
+    if (l.type === "del") {
+      const ai = mapA[ia++];
+      del++;
+      return { type: "del", text: aRaw[ai], aIdx: ai };
+    }
+    const bi = mapB[ib++];
+    add++;
+    return { type: "add", text: bRaw[bi], bIdx: bi };
+  });
   return { lines, stats: { same, add, del }, trunc };
+}
+
+/** 带"忽略"选项的文本 diff：先归一化 + 可选剔除空行（保留到原始行的下标映射），
+ *  对归一化序列做 diff，再把结果映射回原始行文本与行号。
+ *  开关切换即本地重算；same 行的展示文本取 A 侧原文（行号映射仍指向两侧原行）。 */
+export function diffTextWithOptions(
+  aText: string,
+  bText: string,
+  opts?: DiffOptions & { maxLines?: number },
+): DiffResult {
+  const maxLines = Math.max(1, opts?.maxLines ?? MAX_LINES);
+  const ignoreCase = opts?.ignoreCase ?? false;
+  const ignoreTrailingWs = opts?.ignoreTrailingWs ?? false;
+  const ignoreBlankLines = opts?.ignoreBlankLines ?? false;
+  const la = aText.split("\n");
+  const lb = bText.split("\n");
+  const trunc = la.length > maxLines || lb.length > maxLines;
+  const aRaw = trunc ? la.slice(0, maxLines) : la;
+  const bRaw = trunc ? lb.slice(0, maxLines) : lb;
+
+  const cmpOpt = { ignoreCase, ignoreTrailingWs };
+  const na: string[] = [];
+  const nb: string[] = [];
+  const mapA: number[] = [];
+  const mapB: number[] = [];
+  for (let i = 0; i < aRaw.length; i++) {
+    const n = normalizeLine(aRaw[i], cmpOpt);
+    if (ignoreBlankLines && n.trim() === "") continue;
+    na.push(n);
+    mapA.push(i);
+  }
+  for (let j = 0; j < bRaw.length; j++) {
+    const n = normalizeLine(bRaw[j], cmpOpt);
+    if (ignoreBlankLines && n.trim() === "") continue;
+    nb.push(n);
+    mapB.push(j);
+  }
+  return finishDiff(diffLines(na, nb), aRaw, bRaw, mapA, mapB, trunc);
+}
+
+/* ---------- 词级 diff（成对变更行的行内二次高亮） ---------- */
+
+export interface WordSeg {
+  text: string;
+  changed: boolean;
+}
+
+export interface WordDiffResult {
+  /** 旧行分段：按序拼接 === oldLine */
+  old: WordSeg[];
+  /** 新行分段：按序拼接 === newLine */
+  new: WordSeg[];
+}
+
+/** 词级 diff 的行长度保护：任一行超过该字符数则跳过行内高亮 */
+export const WORD_DIFF_MAX_CHARS = 2000;
+/** 词级 LCS 的 token 数乘积上限（控制单行 DP 开销） */
+export const WORD_DIFF_TOKEN_LIMIT = 25_000;
+
+/** 分词：连续字母/数字/下划线、连续空白、其余逐字符（CJK 天然逐字对比）。无损切分。 */
+const TOKEN_RE = /\s+|[A-Za-z0-9_]+|[^A-Za-z0-9_\s]/g;
+
+function tokenize(line: string): string[] {
+  return line.match(TOKEN_RE) ?? [];
+}
+
+/** 词级 diff：对一对修改行做行内 token 级 LCS（O(nm)，带行长/token 规模上限保护），
+ *  输出两侧分段用于行内二次高亮；超限时返回 null，调用方退回整行高亮。 */
+export function wordDiff(oldLine: string, newLine: string): WordDiffResult | null {
+  if (oldLine === newLine) {
+    return { old: [{ text: oldLine, changed: false }], new: [{ text: newLine, changed: false }] };
+  }
+  if (oldLine.length > WORD_DIFF_MAX_CHARS || newLine.length > WORD_DIFF_MAX_CHARS) return null;
+  const a = tokenize(oldLine);
+  const b = tokenize(newLine);
+  if (a.length * b.length > WORD_DIFF_TOKEN_LIMIT) return null;
+
+  const n = a.length;
+  const m = b.length;
+  const w = m + 1;
+  const dp = new Int32Array((n + 1) * w);
+  for (let i = n - 1; i >= 0; i--) {
+    const row = i * w;
+    const below = row + w;
+    const ai = a[i];
+    for (let j = m - 1; j >= 0; j--) {
+      dp[row + j] = ai === b[j] ? dp[below + j + 1] + 1 : Math.max(dp[below + j], dp[row + j + 1]);
+    }
+  }
+
+  const oldSegs: WordSeg[] = [];
+  const newSegs: WordSeg[] = [];
+  const push = (segs: WordSeg[], text: string, changed: boolean) => {
+    const last = segs[segs.length - 1];
+    if (last && last.changed === changed) last.text += text;
+    else segs.push({ text, changed });
+  };
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) {
+      push(oldSegs, a[i], false);
+      push(newSegs, b[j], false);
+      i++;
+      j++;
+    } else if (dp[(i + 1) * w + j] >= dp[i * w + j + 1]) {
+      push(oldSegs, a[i++], true);
+    } else {
+      push(newSegs, b[j++], true);
+    }
+  }
+  while (i < n) push(oldSegs, a[i++], true);
+  while (j < m) push(newSegs, b[j++], true);
+  return { old: oldSegs, new: newSegs };
+}
+
+/* ---------- Unified diff 导出（下载 .diff） ---------- */
+
+export interface UnifiedDiffOptions extends DiffOptions {
+  /** 上下文行数（默认 3，钳制到 0-20） */
+  context?: number;
+  labelA?: string;
+  labelB?: string;
+  maxLines?: number;
+}
+
+/** 生成 Unified diff 文本（`--- / +++ / @@ -x,y +x,y @@`，行为同忽略选项）。
+ *  无差异时返回空串。 */
+export function toUnifiedDiff(aText: string, bText: string, opts?: UnifiedDiffOptions): string {
+  const context = Math.max(0, Math.min(20, opts?.context ?? 3));
+  const { lines } = diffTextWithOptions(aText, bText, opts);
+  const changePos: number[] = [];
+  for (let k = 0; k < lines.length; k++) if (lines[k].type !== "same") changePos.push(k);
+  if (changePos.length === 0) return "";
+
+  // 变更之间同线间隔 ≤ 2*context 时并入同一 hunk（标准 git 行为）
+  const hunks: Array<[number, number]> = [];
+  let hs = changePos[0];
+  let he = changePos[0];
+  for (let t = 1; t < changePos.length; t++) {
+    if (changePos[t] - he - 1 <= 2 * context) he = changePos[t];
+    else {
+      hunks.push([hs, he]);
+      hs = he = changePos[t];
+    }
+  }
+  hunks.push([hs, he]);
+
+  const out: string[] = [`--- ${opts?.labelA ?? "a"}`, `+++ ${opts?.labelB ?? "b"}`];
+  for (const [s, e] of hunks) {
+    const from = Math.max(0, s - context);
+    const to = Math.min(lines.length - 1, e + context);
+    let aStart = -1;
+    let bStart = -1;
+    let aCount = 0;
+    let bCount = 0;
+    for (let k = from; k <= to; k++) {
+      const l = lines[k];
+      if (l.aIdx !== undefined) {
+        if (aStart < 0) aStart = l.aIdx;
+        aCount++;
+      }
+      if (l.bIdx !== undefined) {
+        if (bStart < 0) bStart = l.bIdx;
+        bCount++;
+      }
+    }
+    // 纯插入/纯删除的空侧：起始行 = hunk 前一个上下文行的行号（1 基）；文件头为 0
+    const prev = from > 0 ? lines[from - 1] : undefined;
+    const aNo = aCount > 0 ? aStart + 1 : prev && prev.aIdx !== undefined ? prev.aIdx + 1 : 0;
+    const bNo = bCount > 0 ? bStart + 1 : prev && prev.bIdx !== undefined ? prev.bIdx + 1 : 0;
+    out.push(`@@ -${aNo},${aCount} +${bNo},${bCount} @@`);
+    for (let k = from; k <= to; k++) {
+      const l = lines[k];
+      out.push(`${l.type === "same" ? " " : l.type === "del" ? "-" : "+"}${l.text}`);
+    }
+  }
+  return out.join("\n");
 }

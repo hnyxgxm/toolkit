@@ -134,3 +134,161 @@ export function addWorkdays(
   }
   return { ok: true, result: toISO(t), direction: n > 0 ? "forward" : "backward" };
 }
+
+/* ============================================================
+ * 以下为第二轮「视觉+交互重做」新增的纯函数（同样保持无副作用）
+ * ============================================================ */
+
+/** 闰年判定（格里高利历：4 年一闰，百年不闰，四百年再闰） */
+export function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+/** 某月天数（month0: 0=一月 .. 11=十二月），UTC 日历 */
+export function daysInMonthUTC(year: number, month0: number): number {
+  return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
+}
+
+/** 年内第 N 天（1 起，按 UTC 日历日） */
+export function dayOfYear(ms: number): number {
+  const y = new Date(ms).getUTCFullYear();
+  return Math.floor((ms - Date.UTC(y, 0, 1)) / DAY) + 1;
+}
+
+/** 平移 N 天（可为负），非法入参返回 null */
+export function shiftISO(s: string, days: number): string | null {
+  const ms = parseISO(s);
+  if (ms === null) return null;
+  return toISO(ms + days * DAY);
+}
+
+/** 当月迷你日历矩阵：周一为首列（对齐 ISO 周），null 为留白格 */
+export function monthMatrix(year: number, month1: number): (string | null)[][] {
+  const first = Date.UTC(year, month1 - 1, 1);
+  const lead = (new Date(first).getUTCDay() + 6) % 7; // Mon=0
+  const dim = daysInMonthUTC(year, month1 - 1);
+  const cells: (string | null)[] = [];
+  for (let i = 0; i < lead; i += 1) cells.push(null);
+  for (let d = 1; d <= dim; d += 1) cells.push(toISO(Date.UTC(year, month1 - 1, d)));
+  while (cells.length % 7 !== 0) cells.push(null);
+  const rows: (string | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+  return rows;
+}
+
+export interface WeekdayInfo {
+  iso: string;
+  /** 星期几中文，如「星期四」 */
+  cn: string;
+  /** 0=周日 .. 6=周六 */
+  wdIndex: number;
+  isWeekend: boolean;
+  /** 年内第 N 天（1 起） */
+  dayOfYear: number;
+  isoWeekWeek: number;
+  isoWeekFrom: string;
+  isoWeekTo: string;
+  year: number;
+  isLeap: boolean;
+}
+
+/** 聚合星期查询的全部派生信息；非法日期返回 null */
+export function weekdayInfo(iso: string): WeekdayInfo | null {
+  const ms = parseISO(iso);
+  if (ms === null) return null;
+  const dt = new Date(ms);
+  const wd = dt.getUTCDay();
+  const year = dt.getUTCFullYear();
+  const w = isoWeek(ms);
+  return {
+    iso,
+    cn: WEEKDAY_CN[wd],
+    wdIndex: wd,
+    isWeekend: wd === 0 || wd === 6,
+    dayOfYear: dayOfYear(ms),
+    isoWeekWeek: w.week,
+    isoWeekFrom: w.from,
+    isoWeekTo: w.to,
+    year,
+    isLeap: isLeapYear(year),
+  };
+}
+
+/** 多行批量星期查询：忽略空行，逐行回显原始输入 */
+export function weekdayInfoLines(text: string): Array<{ raw: string; info: WeekdayInfo | null }> {
+  return text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .map((raw) => ({ raw, info: weekdayInfo(raw) }));
+}
+
+export interface DurationUnits {
+  /** 整年数（日历精确） */
+  years: number;
+  /** 剩余整月数（日历精确） */
+  months: number;
+  /** 剩余天数（日历精确） */
+  days: number;
+  /** 总天数（与 diffDates 同口径） */
+  totalDays: number;
+  /** 整周数 = floor(totalDays / 7) */
+  weeks: number;
+  /** 余数天 = totalDays % 7 */
+  weekRemainder: number;
+}
+
+/** 拆出 UTC 日历的年月日部分 */
+function isoParts(ms: number): { y: number; m: number; d: number } {
+  const [y, m, d] = toISO(ms).split("-").map(Number);
+  return { y, m, d };
+}
+
+/**
+ * 多单位时长拆解：天 / 周 / 年·月·日。
+ * inclusive（含尾日）时按「结束日 + 1 天」计算，与 diffDates 的 totalDays 恒一致；
+ * exclusive 时按「不含结束日」计算。月按日历口径（不足一月按天借位，月末按当月实际天数收敛）。
+ * 非法或结束早于起始返回 null。
+ */
+export function diffUnits(startStr: string, endStr: string, mode: RangeMode): DurationUnits | null {
+  const s = parseISO(startStr);
+  const e = parseISO(endStr);
+  if (s === null || e === null || e < s) return null;
+  const effEnd = mode === "inclusive" ? e + DAY : e;
+
+  const se = isoParts(s);
+  const ee = isoParts(effEnd);
+  let months = (ee.y * 12 + ee.m) - (se.y * 12 + se.m);
+  if (ee.d < se.d) months -= 1;
+  const years = Math.floor(months / 12);
+  const restMonths = months - years * 12;
+
+  // 锚点：起始日 + months（月末溢出时收敛到当月最后一天，如 1-31 + 1 月 → 2-28/29）
+  const anchorY = se.y + Math.floor((se.m - 1 + months) / 12);
+  const anchorM0 = (((se.m - 1 + months) % 12) + 12) % 12;
+  const anchor = Date.UTC(anchorY, anchorM0, Math.min(se.d, daysInMonthUTC(anchorY, anchorM0)));
+
+  const totalDays = Math.round((effEnd - s) / DAY);
+  return {
+    years,
+    months: restMonths,
+    days: Math.round((effEnd - anchor) / DAY),
+    totalDays,
+    weeks: Math.floor(totalDays / 7),
+    weekRemainder: totalDays % 7,
+  };
+}
+
+/** 中文拼接年/月/日，前导零单位省略，全零为「0 天」 */
+export function formatDurationCN(u: Pick<DurationUnits, "years" | "months" | "days">): string {
+  const parts: string[] = [];
+  if (u.years > 0) parts.push(`${u.years} 年`);
+  if (u.months > 0) parts.push(`${u.months} 个月`);
+  if (u.days > 0 || parts.length === 0) parts.push(`${u.days} 天`);
+  return parts.join(" ");
+}
+
+/** 「X 周 Y 天」 */
+export function formatWeeksCN(u: Pick<DurationUnits, "weeks" | "weekRemainder">): string {
+  return `${u.weeks} 周 ${u.weekRemainder} 天`;
+}

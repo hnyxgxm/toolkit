@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { diffLines, diffText, MAX_LINES, type DiffLine } from "@/lib/diff";
+import {
+  diffLines,
+  diffText,
+  diffTextWithOptions,
+  normalizeLine,
+  wordDiff,
+  toUnifiedDiff,
+  MAX_LINES,
+  WORD_DIFF_MAX_CHARS,
+  type DiffLine,
+} from "@/lib/diff";
 
 /* ---------- 工具 ---------- */
 
@@ -139,7 +149,7 @@ describe("diff 引擎：三极值", () => {
   it("diffText 空串按单空行处理（与旧组件行为一致）", () => {
     const r = diffText("", "");
     expect(r.trunc).toBe(false);
-    expect(r.lines).toEqual([{ type: "same", text: "" }]);
+    expect(r.lines).toEqual([{ type: "same", text: "", aIdx: 0, bIdx: 0 }]);
     expect(r.stats).toEqual({ same: 1, add: 0, del: 0 });
   });
 
@@ -355,5 +365,264 @@ describe("diff 引擎：性能护栏（1 万行 vs 1 万行，宽松上限 3s）
     expect(s.del).toBeLessThanOrEqual(120);
     expect(s.add).toBeLessThanOrEqual(120);
     expect(dt).toBeLessThan(3000);
+  });
+});
+
+/* ---------- 行号映射（aIdx/bIdx，供双栏视图与锚点导航使用） ---------- */
+
+describe("diff 引擎：行号映射", () => {
+  it("same/del/add 行携带正确的原始下标", () => {
+    const r = diffText("x\ny\nz", "x\nw\nz");
+    expect(r.lines).toEqual([
+      { type: "same", text: "x", aIdx: 0, bIdx: 0 },
+      { type: "del", text: "y", aIdx: 1 },
+      { type: "add", text: "w", bIdx: 1 },
+      { type: "same", text: "z", aIdx: 2, bIdx: 2 },
+    ]);
+  });
+
+  it("插入与删除场景下标连续推进（平局优先输出删除行）", () => {
+    const r = diffLines(["a", "b", "c"], ["a", "x", "y", "c"]);
+    expect(r.map((l) => [l.type, l.text])).toEqual([
+      ["same", "a"],
+      ["del", "b"],
+      ["add", "x"],
+      ["add", "y"],
+      ["same", "c"],
+    ]);
+    const t = diffText("a\nb\nc", "a\nx\ny\nc");
+    expect(t.lines.map((l) => [l.type, l.aIdx, l.bIdx])).toEqual([
+      ["same", 0, 0],
+      ["del", 1, undefined],
+      ["add", undefined, 1],
+      ["add", undefined, 2],
+      ["same", 2, 3],
+    ]);
+  });
+});
+
+/* ---------- 忽略选项（归一化 + 映射回原行） ---------- */
+
+describe("diff 忽略选项", () => {
+  it("默认选项与 diffText 完全一致", () => {
+    const a = "a\nb \nC";
+    const b = "a\nb\nc\n";
+    expect(diffTextWithOptions(a, b)).toEqual(diffText(a, b));
+  });
+
+  it("忽略大小写：视为相同，展示保留 A 侧原文", () => {
+    const r = diffTextWithOptions("Hello\nx", "hello\nx", { ignoreCase: true });
+    expect(r.stats).toEqual({ same: 2, add: 0, del: 0 });
+    expect(r.lines[0].text).toBe("Hello");
+    expect(r.lines[0].aIdx).toBe(0);
+    expect(r.lines[0].bIdx).toBe(0);
+  });
+
+  it("忽略行尾空白：尾部空格/制表符不影响比较，展示保留 A 侧原文", () => {
+    const r = diffTextWithOptions("a \t\nb", "a\nb   ", { ignoreTrailingWs: true });
+    expect(r.stats).toEqual({ same: 2, add: 0, del: 0 });
+    expect(r.lines[0].text).toBe("a \t"); // same 行展示 A 侧原文
+    expect(r.lines[1].text).toBe("b");
+    // 行号映射仍指向两侧原行：B 侧原文含行尾空白
+    const bRaw = "a\nb   ".split("\n");
+    expect(bRaw[r.lines[1].bIdx!]).toBe("b   ");
+  });
+
+  it("忽略空行：空行与纯空白行不参与对比", () => {
+    const r = diffTextWithOptions("a\n\n \nb", "a\nb", { ignoreBlankLines: true });
+    expect(r.stats).toEqual({ same: 2, add: 0, del: 0 });
+  });
+
+  it("关闭开关时空行差异照常统计", () => {
+    expect(diffTextWithOptions("a\n\nb", "a\nb").stats.del).toBe(1);
+  });
+
+  it("normalizeLine：大小写与行尾空白归一化", () => {
+    expect(normalizeLine("AbC  ", { ignoreCase: true, ignoreTrailingWs: true })).toBe("abc");
+    expect(normalizeLine("AbC", { ignoreCase: true, ignoreTrailingWs: false })).toBe("abc");
+    expect(normalizeLine("AbC  ", { ignoreCase: false, ignoreTrailingWs: true })).toBe("AbC");
+    expect(normalizeLine("AbC", { ignoreCase: false, ignoreTrailingWs: false })).toBe("AbC");
+  });
+
+  it("组合开关：正确配对并映射回原始行文本与行号", () => {
+    const r = diffTextWithOptions("Alpha \n\nbeta", "alpha\nBETA!!\n\n", {
+      ignoreCase: true,
+      ignoreTrailingWs: true,
+      ignoreBlankLines: true,
+    });
+    expect(r.stats).toEqual({ same: 1, add: 1, del: 1 });
+    expect(r.lines.map((l) => [l.type, l.text])).toEqual([
+      ["same", "Alpha "],
+      ["del", "beta"],
+      ["add", "BETA!!"],
+    ]);
+    expect(r.lines[0].aIdx).toBe(0);
+    expect(r.lines[0].bIdx).toBe(0);
+    expect(r.lines[1].aIdx).toBe(2);
+    expect(r.lines[2].bIdx).toBe(1);
+  });
+
+  it("忽略空行时 same 行的 aIdx/bIdx 跳过被忽略行", () => {
+    const r = diffTextWithOptions("a\n\nb", "a\nb", { ignoreBlankLines: true });
+    expect(r.lines).toEqual([{ type: "same", text: "a", aIdx: 0, bIdx: 0 }, { type: "same", text: "b", aIdx: 2, bIdx: 1 }]);
+  });
+
+  it("忽略空行后空文本输入得到空结果", () => {
+    const r = diffTextWithOptions("", "", { ignoreBlankLines: true });
+    expect(r.lines).toEqual([]);
+    expect(r.stats).toEqual({ same: 0, add: 0, del: 0 });
+  });
+});
+
+/* ---------- 词级 diff（成对变更行的行内二次高亮） ---------- */
+
+describe("词级 diff", () => {
+  it("词级替换：公共 token 保持未变，差异 token 标记", () => {
+    const wd = wordDiff("const x = 1;", "const y = 1;");
+    expect(wd).not.toBeNull();
+    expect(wd!.old.map((s) => s.text).join("")).toBe("const x = 1;");
+    expect(wd!.new.map((s) => s.text).join("")).toBe("const y = 1;");
+    expect(
+      wd!.old
+        .filter((s) => s.changed)
+        .map((s) => s.text)
+        .join(""),
+    ).toBe("x");
+    expect(
+      wd!.new
+        .filter((s) => s.changed)
+        .map((s) => s.text)
+        .join(""),
+    ).toBe("y");
+  });
+
+  it("中文字符逐字对比", () => {
+    const wd = wordDiff("我们发布新版本", "我们上线新版本");
+    expect(wd).not.toBeNull();
+    expect(
+      wd!.old
+        .filter((s) => s.changed)
+        .map((s) => s.text)
+        .join(""),
+    ).toBe("发布");
+    expect(
+      wd!.new
+        .filter((s) => s.changed)
+        .map((s) => s.text)
+        .join(""),
+    ).toBe("上线");
+  });
+
+  it("纯新增：旧侧无 changed 段", () => {
+    const wd = wordDiff("hello", "hello world");
+    expect(wd).not.toBeNull();
+    expect(wd!.old.every((s) => !s.changed)).toBe(true);
+    expect(
+      wd!.new
+        .filter((s) => s.changed)
+        .map((s) => s.text)
+        .join(""),
+    ).toBe(" world");
+  });
+
+  it("相同行：返回单段未变更", () => {
+    const wd = wordDiff("same line", "same line");
+    expect(wd!.old).toEqual([{ text: "same line", changed: false }]);
+    expect(wd!.new).toEqual([{ text: "same line", changed: false }]);
+  });
+
+  it("行长保护：超过字符上限返回 null", () => {
+    const long = "a".repeat(WORD_DIFF_MAX_CHARS + 1);
+    expect(wordDiff(long, "b")).toBeNull();
+    expect(wordDiff("a", long)).toBeNull();
+    expect(wordDiff("a".repeat(WORD_DIFF_MAX_CHARS), "b")).not.toBeNull();
+  });
+
+  it("token 乘积保护：字符数未超限但 token 规模超限返回 null", () => {
+    const l1 = Array.from({ length: 160 }, (_, i) => `w${i}`).join(" ");
+    const l2 = Array.from({ length: 160 }, (_, i) => `v${i}`).join(" ");
+    expect(l1.length).toBeLessThan(WORD_DIFF_MAX_CHARS);
+    expect(wordDiff(l1, l2)).toBeNull();
+    // 缩短到乘积限制内后正常出结果
+    const s1 = Array.from({ length: 60 }, (_, i) => `w${i}`).join(" ");
+    const s2 = Array.from({ length: 60 }, (_, i) => `v${i}`).join(" ");
+    expect(wordDiff(s1, s2)).not.toBeNull();
+  });
+
+  it("随机行：无损重建 + 未变段两侧一致", () => {
+    const rng = makeRng(4242);
+    for (let t = 0; t < 200; t++) {
+      const gen = () => {
+        const n = Math.floor(rng() * 30);
+        let s = "";
+        for (let i = 0; i < n; i++) {
+          const r = rng();
+          s += r < 0.5 ? `w${Math.floor(rng() * 6)}` : r < 0.75 ? " " : String.fromCharCode(0x4e00 + Math.floor(rng() * 50));
+        }
+        return s;
+      };
+      const x = gen();
+      const y = gen();
+      const wd = wordDiff(x, y);
+      if (!wd) continue;
+      expect(wd.old.map((s) => s.text).join("")).toBe(x);
+      expect(wd.new.map((s) => s.text).join("")).toBe(y);
+      // 未变 token 序列两侧一致（分段合并边界可能不同，按拼接后比较）
+      const sameA = wd.old
+        .filter((s) => !s.changed)
+        .map((s) => s.text)
+        .join("");
+      const sameB = wd.new
+        .filter((s) => !s.changed)
+        .map((s) => s.text)
+        .join("");
+      expect(sameA).toBe(sameB);
+    }
+  });
+});
+
+/* ---------- Unified diff 导出（下载 .diff） ---------- */
+
+describe("toUnifiedDiff", () => {
+  it("简单替换：单一 hunk，头与内容行正确", () => {
+    const d = toUnifiedDiff("1\n2\n3", "1\n2\n4");
+    expect(d).toBe(["--- a", "+++ b", "@@ -1,3 +1,3 @@", " 1", " 2", "-3", "+4"].join("\n"));
+  });
+
+  it("相距较远的两处修改拆分为两个 hunk", () => {
+    const d = toUnifiedDiff("1\n2\n3\n4\n5\n6\n7\n8\n9\n10", "X\n2\n3\n4\n5\n6\n7\n8\n9\nY");
+    const lines = d.split("\n");
+    expect(lines[0]).toBe("--- a");
+    expect(lines[1]).toBe("+++ b");
+    expect(lines[2]).toBe("@@ -1,4 +1,4 @@");
+    expect(lines.slice(3, 8)).toEqual(["-1", "+X", " 2", " 3", " 4"]);
+    expect(lines[8]).toBe("@@ -7,4 +7,4 @@");
+    expect(lines.slice(9)).toEqual([" 7", " 8", " 9", "-10", "+Y"]);
+  });
+
+  it("间距不超过 2×context 的修改并入同一 hunk", () => {
+    const d = toUnifiedDiff("1\n2\n3\n4\n5", "1\n2\nX\n4\nY");
+    expect(d).toBe(["--- a", "+++ b", "@@ -1,5 +1,5 @@", " 1", " 2", "-3", "+X", " 4", "-5", "+Y"].join("\n"));
+  });
+
+  it("向空串插入（空串按单空行处理）：整块删除+新增", () => {
+    const d = toUnifiedDiff("", "x\ny");
+    expect(d).toBe(["--- a", "+++ b", "@@ -1,1 +1,2 @@", "-", "+x", "+y"].join("\n"));
+  });
+
+  it("纯插入 hunk：空侧使用 ,0 记法（起始为前一上下文行）", () => {
+    const d = toUnifiedDiff("1\n2", "1\nx\ny\n2", { context: 0 });
+    expect(d).toBe(["--- a", "+++ b", "@@ -1,0 +2,2 @@", "+x", "+y"].join("\n"));
+  });
+
+  it("无差异返回空串；忽略选项生效", () => {
+    expect(toUnifiedDiff("a\nb", "a\nb")).toBe("");
+    expect(toUnifiedDiff("A\nb", "a\nb", { ignoreCase: true })).toBe("");
+    expect(toUnifiedDiff("A\nb", "a\nb")).not.toBe("");
+  });
+
+  it("自定义 context 与标签", () => {
+    const d = toUnifiedDiff("1\n2\n3", "1\n2\nX", { context: 0, labelA: "old.txt", labelB: "new.txt" });
+    expect(d).toBe(["--- old.txt", "+++ new.txt", "@@ -3,1 +3,1 @@", "-3", "+X"].join("\n"));
   });
 });

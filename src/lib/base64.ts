@@ -135,6 +135,57 @@ export function tryDecodeBase64ToText(input: string, opts?: { urlSafe?: boolean 
   }
 }
 
+/* ==================== 严格校验（解码失败时定位首处非法字符） ==================== */
+
+export interface Base64Issue {
+  /** 原始输入中的 0 起始偏移（长度类错误指向最后一个数据字符） */
+  offset: number;
+  /** 出错的字符；长度类错误为空字符串 */
+  char: string;
+  /** 可直接展示的中文说明 */
+  message: string;
+}
+
+/**
+ * 严格校验 Base64 输入，返回首处问题及偏移；合法返回 null。
+ * 语义与 decodeBase64 完全一致：允许任意空白穿插；urlSafe=true 时额外允许 - _；
+ * 填充符（=）只能出现在末尾且最多 2 个；去掉填充后末组剩余 1 个字符视为长度非法。
+ */
+export function findBase64Issue(input: string, opts?: { urlSafe?: boolean }): Base64Issue | null {
+  const urlSafe = opts?.urlSafe ?? false;
+  const isData = (c: string): boolean =>
+    (c >= "A" && c <= "Z") || (c >= "a" && c <= "z") || (c >= "0" && c <= "9") || c === "+" || c === "/" || (urlSafe && (c === "-" || c === "_"));
+  let padStart = -1;
+  let padCount = 0;
+  let dataLen = 0;
+  let lastData = -1;
+  for (let i = 0; i < input.length; i++) {
+    const c = input[i];
+    if (/\s/.test(c)) continue;
+    if (c === "=") {
+      if (padStart === -1) padStart = i;
+      padCount++;
+      if (padCount > 2) return { offset: i, char: "=", message: "Base64 填充符（=）数量非法，末尾最多 2 个" };
+      continue;
+    }
+    if (padStart !== -1) return { offset: i, char: c, message: "Base64 填充符（=）只能出现在末尾" };
+    if (isData(c)) {
+      dataLen++;
+      lastData = i;
+      continue;
+    }
+    return {
+      offset: i,
+      char: c,
+      message: `非法字符「${c}」（仅允许 A-Z a-z 0-9 + /${urlSafe ? " - _" : ""} 与末尾 =）`,
+    };
+  }
+  if (dataLen % 4 === 1) {
+    return { offset: Math.max(lastData, 0), char: lastData >= 0 ? input[lastData] : "", message: "Base64 长度不正确：去掉填充符后末组剩余 1 个字符" };
+  }
+  return null;
+}
+
 /* ==================== DataURI ==================== */
 
 export interface DataUriParts {

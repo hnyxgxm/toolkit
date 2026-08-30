@@ -3,8 +3,12 @@ import {
   calcTax,
   calcAnnualTax,
   calcSpecialDeductions,
+  calcGrossFromTakeHome,
   findBracket,
+  findBracketIndex,
+  bracketRangeLabel,
   CITY_PRESETS,
+  MONTHLY_BRACKETS,
   ANNUAL_BRACKETS,
   ANNUAL_STANDARD_DEDUCTION,
   TAX_TABLE_META,
@@ -283,5 +287,124 @@ describe("数据年份透明（dataYear / lastVerified）", () => {
     expect(SPECIAL_DEDUCTION_STANDARDS.infantCarePerChildMonthly).toBe(2000);
     expect(SPECIAL_DEDUCTION_STANDARDS.elderlyOnlyMonthly).toBe(3000);
     expect(SPECIAL_DEDUCTION_STANDARDS.elderlySharedMonthlyCap).toBe(1500);
+  });
+});
+
+/* ==================== 税率表定位与区间文案（结果页高亮当前档） ==================== */
+
+describe("findBracketIndex / bracketRangeLabel", () => {
+  it("月度表定位：与 findBracket 档位一致（边界值归低档）", () => {
+    expect(findBracketIndex(0)).toBe(0);
+    expect(findBracketIndex(3000)).toBe(0);
+    expect(findBracketIndex(3000.01)).toBe(1);
+    expect(findBracketIndex(12000)).toBe(1);
+    expect(findBracketIndex(12000.01)).toBe(2);
+    expect(findBracketIndex(80000)).toBe(5);
+    expect(findBracketIndex(80000.01)).toBe(6);
+    expect(findBracketIndex(NaN)).toBe(0); // 非法输入归零后落第一档
+  });
+
+  it("年度表定位：七档边界与 findBracket 结果一致", () => {
+    expect(findBracketIndex(36000, ANNUAL_BRACKETS)).toBe(0);
+    expect(findBracketIndex(36000.01, ANNUAL_BRACKETS)).toBe(1);
+    expect(findBracketIndex(960000, ANNUAL_BRACKETS)).toBe(5);
+    expect(findBracketIndex(960000.01, ANNUAL_BRACKETS)).toBe(6);
+    expect(findBracketIndex(99999999, ANNUAL_BRACKETS)).toBe(6);
+  });
+
+  it("月度表共 7 档、年度表共 7 档（供结果页固定展示七级表）", () => {
+    expect(MONTHLY_BRACKETS).toHaveLength(7);
+    expect(MONTHLY_BRACKETS.map((b) => b[0])).toEqual([3000, 12000, 25000, 35000, 55000, 80000, Infinity]);
+    expect(MONTHLY_BRACKETS.map((b) => b[2])).toEqual([0, 210, 1410, 2660, 4410, 7160, 15160]);
+    expect(ANNUAL_BRACKETS).toHaveLength(7);
+  });
+
+  it("区间文案：首档/中间档/末档（官方表述风格）", () => {
+    expect(bracketRangeLabel(MONTHLY_BRACKETS, 0)).toBe("不超过 3,000 元");
+    expect(bracketRangeLabel(MONTHLY_BRACKETS, 1)).toBe("超过 3,000 元至 12,000 元");
+    expect(bracketRangeLabel(MONTHLY_BRACKETS, 6)).toBe("超过 80,000 元");
+    expect(bracketRangeLabel(ANNUAL_BRACKETS, 0)).toBe("不超过 36,000 元");
+    expect(bracketRangeLabel(ANNUAL_BRACKETS, 6)).toBe("超过 960,000 元");
+  });
+
+  it("findBracket 行为不回归：边界值与速算扣除数", () => {
+    expect(findBracket(3000)).toMatchObject({ rate: 0.03, quick: 0 });
+    expect(findBracket(3000.01)).toMatchObject({ rate: 0.1, quick: 210 });
+    expect(findBracket(120000)).toMatchObject({ rate: 0.45, quick: 15160 });
+  });
+});
+
+/* ==================== 税后反推税前（二分，不变式） ==================== */
+
+describe("calcGrossFromTakeHome：税后反推税前", () => {
+  const params = { rates: sh.rates, specialAdditional: 0, applyBaseLimit: false, baseFloor: sh.baseFloor, baseCap: sh.baseCap };
+
+  it("不变式·反推误差 < 0.01 元：任意目标税后反推后正算税后与目标差 < 0.01", () => {
+    for (const t of [3000, 4125, 10000, 18910, 30000, 50000, 88888.88, 120000]) {
+      const rev = calcGrossFromTakeHome(t, params);
+      expect(rev.converged).toBe(true);
+      expect(rev.residual).toBeLessThan(0.01);
+      expect(rev.takeHome).toBeCloseTo(t, 2);
+    }
+  });
+
+  it("不变式·往返一致：正算税后 → 反推税前 ≈ 原税前（分级精度）", () => {
+    for (const s of [5000, 8000, 12345.67, 25000, 68000, 120000]) {
+      const fwd = calcTax({ ...params, salary: s });
+      const rev = calcGrossFromTakeHome(fwd.takeHome, params);
+      expect(rev.converged).toBe(true);
+      // 反推的税前正算回去，税后必须与目标一致（< 0.01 元）；税前本身允许 1 分钱舍入
+      expect(Math.abs(rev.takeHome - fwd.takeHome)).toBeLessThan(0.01);
+      expect(Math.abs(rev.gross - s)).toBeLessThan(0.02);
+    }
+  });
+
+  it("开启社保基数封顶/保底后往返一致", () => {
+    const capped = { ...params, applyBaseLimit: true };
+    for (const s of [3000, 6000, 20000, 50000, 100000, 200000]) {
+      const fwd = calcTax({ ...capped, salary: s });
+      const rev = calcGrossFromTakeHome(fwd.takeHome, capped);
+      expect(rev.converged).toBe(true);
+      expect(Math.abs(rev.takeHome - fwd.takeHome)).toBeLessThan(0.01);
+      expect(Math.abs(rev.gross - s)).toBeLessThan(0.02);
+    }
+  });
+
+  it("含专项附加扣除后往返一致", () => {
+    const withDeduction = { ...params, specialAdditional: 3000 };
+    for (const s of [8000, 15000, 30000]) {
+      const fwd = calcTax({ ...withDeduction, salary: s });
+      const rev = calcGrossFromTakeHome(fwd.takeHome, withDeduction);
+      expect(Math.abs(rev.gross - s)).toBeLessThan(0.02);
+    }
+  });
+
+  it("反推结果满足完整恒等式：gross − 五险一金 − 个税 = takeHome ≈ target", () => {
+    const rev = calcGrossFromTakeHome(18910, params);
+    const recheck = calcTax({ ...params, salary: rev.gross });
+    expect(recheck.takeHome).toBe(rev.takeHome);
+    expect(rev.insuranceTotal).toBe(recheck.insuranceTotal);
+    expect(rev.tax).toBe(recheck.tax);
+    expect(Math.abs(rev.takeHome - 18910)).toBeLessThan(0.01);
+  });
+
+  it("NaN/负数目标：钳制为 0 且结果全部有限", () => {
+    for (const t of [NaN, -5000, Infinity]) {
+      const rev = calcGrossFromTakeHome(t, params);
+      expect(rev.target).toBe(0);
+      for (const v of [rev.gross, rev.insuranceTotal, rev.taxable, rev.tax, rev.takeHome, rev.residual]) {
+        expect(Number.isFinite(v)).toBe(true);
+      }
+      expect(rev.gross).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("各城市预设下反推均收敛且残差 < 0.01", () => {
+    for (const c of CITY_PRESETS) {
+      const p = { rates: c.rates, specialAdditional: 0, applyBaseLimit: true, baseFloor: c.baseFloor, baseCap: c.baseCap };
+      const rev = calcGrossFromTakeHome(20000, p);
+      expect(rev.converged).toBe(true);
+      expect(rev.residual).toBeLessThan(0.01);
+    }
   });
 });

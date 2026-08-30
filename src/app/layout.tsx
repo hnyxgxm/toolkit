@@ -3,9 +3,16 @@ import { JetBrains_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 import { ALL_TOOLS, navLabel, SITE_ORIGIN, BASE_PATH, OG_IMAGE } from "@/lib/seo";
+import { DesktopNavLinks, MobileNav, type NavItem } from "@/components/ui";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
+
+const NAV_ITEMS: NavItem[] = ALL_TOOLS.map((t) => ({
+  slug: t.slug,
+  label: navLabel(t.slug),
+  title: t.title,
+}));
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN + BASE_PATH),
@@ -42,32 +49,24 @@ export default function RootLayout({
     <html lang="zh-CN" className="dark">
       <body className={`${inter.variable} ${mono.variable} font-sans`}>
         <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.06] bg-[#0a0a0b]/80 backdrop-blur-xl">
-          <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 group">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+            <Link href="/" className="flex items-center gap-2 group shrink-0">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold group-hover:shadow-lg group-hover:shadow-blue-500/25 transition-shadow">
                 T
               </div>
               <span className="font-semibold text-white tracking-tight">toolkit</span>
             </Link>
-            <div className="hidden md:flex items-center gap-1 overflow-x-auto min-w-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {ALL_TOOLS.map((t) => (
-                <Link
-                  key={t.slug}
-                  href={`/${t.slug}`}
-                  title={t.title}
-                  className="shrink-0 whitespace-nowrap px-2.5 py-1.5 text-xs font-mono text-neutral-400 hover:text-white hover:bg-white/[0.06] rounded-md transition-colors"
-                >
-                  {navLabel(t.slug)}
-                </Link>
-              ))}
-            </div>
+            {/* 桌面端：13 个链接横滚，shrink-0 + whitespace-nowrap 防折行 */}
+            <DesktopNavLinks items={NAV_ITEMS} />
+            {/* 移动端：抽屉导航 */}
+            <MobileNav items={NAV_ITEMS} />
           </div>
         </nav>
-        <main className="relative z-10 max-w-5xl mx-auto px-6 pt-24 pb-20">
+        <main className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 pt-24 pb-20">
           {children}
         </main>
         <footer className="relative z-10 border-t border-white/[0.06]">
-          <div className="max-w-5xl mx-auto px-6 py-8 flex items-center justify-between text-xs text-neutral-600 font-mono">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-600 font-mono">
             <span>© 2026 toolkit · 全部本地运算，数据不上传</span>
             <span className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>

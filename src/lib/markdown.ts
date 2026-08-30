@@ -147,6 +147,7 @@ export function renderMarkdown(src: string): string {
   let inCode = false;
   let codeBuf: string[] = [];
   let listType: "ul" | "ol" | null = null;
+  let headingSeq = 0; // 标题锚点序号（与 extractOutline 的 id 规则一致）
 
   const closeList = () => {
     if (listType) { out.push(`</${listType}>`); listType = null; }
@@ -167,7 +168,7 @@ export function renderMarkdown(src: string): string {
     if (!line.trim()) { closeList(); continue; }
 
     const h = line.match(/^(#{1,6})\s+(.*)$/);
-    if (h) { closeList(); const lvl = h[1].length; const sizes = ["text-2xl", "text-xl", "text-lg", "text-base", "text-sm", "text-sm"]; out.push(`<h${lvl} class="font-bold text-white ${sizes[lvl - 1]} mt-5 mb-2">${inline(h[2], footnoteHtml)}</h${lvl}>`); continue; }
+    if (h) { closeList(); const lvl = h[1].length; const sizes = ["text-2xl", "text-xl", "text-lg", "text-base", "text-sm", "text-sm"]; out.push(`<h${lvl} id="md-h-${headingSeq++}" class="font-bold text-white ${sizes[lvl - 1]} mt-5 mb-2">${inline(h[2], footnoteHtml)}</h${lvl}>`); continue; }
 
     if (/^(---|\*\*\*)\s*$/.test(line)) { closeList(); out.push('<hr class="border-white/10 my-5" />'); continue; }
 
@@ -236,4 +237,147 @@ export function renderMarkdown(src: string): string {
   }
 
   return out.join("\n");
+}
+
+/* ---------- 大纲目录 ---------- */
+
+export interface OutlineItem {
+  /** 标题级别 1-6 */
+  level: number;
+  /** 标题原始文本 */
+  text: string;
+  /** 与 renderMarkdown 输出一致的锚点 id（md-h-<序号>） */
+  id: string;
+  /** 源文本中的 0 基行号 */
+  line: number;
+}
+
+/** 从 Markdown 源码提取标题大纲（跳过围栏代码块内的行）。
+ *  id 序号规则与 renderMarkdown 的标题 id 一致，可互相锚定。 */
+export function extractOutline(src: string): OutlineItem[] {
+  const lines = src.split("\n");
+  const out: OutlineItem[] = [];
+  let inCode = false;
+  let seq = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].replace(/\s+$/, "");
+    if (/^```/.test(line)) {
+      inCode = !inCode;
+      continue;
+    }
+    if (inCode) continue;
+    const h = line.match(/^(#{1,6})\s+(.*)$/);
+    if (h) out.push({ level: h[1].length, text: h[2].trim(), id: `md-h-${seq++}`, line: i });
+  }
+  return out;
+}
+
+/* ---------- 编辑器动作（工具栏插入 / 选区包裹 / 快捷键共用） ---------- */
+
+export type MdAction =
+  | "h1"
+  | "h2"
+  | "h3"
+  | "bold"
+  | "italic"
+  | "code"
+  | "link"
+  | "ul"
+  | "ol"
+  | "quote"
+  | "table";
+
+export interface MdEditResult {
+  /** 动作后的完整文本 */
+  text: string;
+  /** 建议的新选区（textarea.setSelectionRange 参数） */
+  selStart: number;
+  selEnd: number;
+}
+
+const INLINE_WRAP: Partial<Record<MdAction, { marker: string; placeholder: string }>> = {
+  bold: { marker: "**", placeholder: "加粗文本" },
+  italic: { marker: "*", placeholder: "斜体文本" },
+  code: { marker: "`", placeholder: "代码" },
+};
+
+const LINE_PREFIX: Partial<Record<MdAction, string>> = {
+  h1: "# ",
+  h2: "## ",
+  h3: "### ",
+  ul: "- ",
+  quote: "> ",
+};
+
+const OL_RE = /^\d+\.\s/;
+
+/** 行内包裹：有选区时包住选区（已包裹则解除），无选区时插入占位文本并选中。 */
+function applyWrap(src: string, start: number, end: number, marker: string, placeholder: string): MdEditResult {
+  const sel = src.slice(start, end);
+  const m = marker.length;
+  const before = src.slice(Math.max(0, start - m), start);
+  const after = src.slice(end, end + m);
+  if (sel && before === marker && after === marker) {
+    const text = src.slice(0, start - m) + sel + src.slice(end + m);
+    return { text, selStart: start - m, selEnd: end - m };
+  }
+  const inner = sel || placeholder;
+  const text = src.slice(0, start) + marker + inner + marker + src.slice(end);
+  const s = start + m;
+  return { text, selStart: s, selEnd: s + inner.length };
+}
+
+function applyLink(src: string, start: number, end: number): MdEditResult {
+  const sel = src.slice(start, end);
+  const label = sel || "链接文本";
+  const url = "https://";
+  const text = `${src.slice(0, start)}[${label}](${url})${src.slice(end)}`;
+  const uStart = start + label.length + 3; // 越过 "[label](""
+  return { text, selStart: uStart, selEnd: uStart + url.length };
+}
+
+/** 行前缀动作（标题/列表/引用）：作用于选区覆盖的整块行，全部已带前缀时解除（toggle）。 */
+function applyLineAction(src: string, start: number, end: number, action: MdAction): MdEditResult {
+  const lineStart = src.lastIndexOf("\n", start - 1) + 1;
+  const nl = src.indexOf("\n", end);
+  const lineEnd = nl === -1 ? src.length : nl;
+  const lines = src.slice(lineStart, lineEnd).split("\n");
+  const isOl = action === "ol";
+  const prefix = isOl ? "" : LINE_PREFIX[action] ?? "";
+  const has = (l: string) => (isOl ? OL_RE.test(l) : l.startsWith(prefix));
+  const all = lines.every(has);
+  const outLines = lines.map((l, i) => {
+    if (all) return isOl ? l.replace(OL_RE, "") : l.slice(prefix.length);
+    if (has(l)) return l;
+    return isOl ? `${i + 1}. ${l}` : `${prefix}${l}`;
+  });
+  const newBlock = outLines.join("\n");
+  const text = src.slice(0, lineStart) + newBlock + src.slice(lineEnd);
+  if (start === end) {
+    const cursor = lineStart + newBlock.length;
+    return { text, selStart: cursor, selEnd: cursor };
+  }
+  return { text, selStart: lineStart, selEnd: lineStart + newBlock.length };
+}
+
+function applyTable(src: string, start: number, end: number): MdEditResult {
+  const snippet = "| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |\n";
+  const lead = start > 0 && src[start - 1] !== "\n" ? "\n" : "";
+  const text = src.slice(0, start) + lead + snippet + src.slice(end);
+  const c1 = start + lead.length + 2; // 选中"列1"便于直接输入
+  return { text, selStart: c1, selEnd: c1 + 2 };
+}
+
+/** 对 [selStart, selEnd) 选区应用 Markdown 编辑动作，返回新文本与新选区。 */
+export function applyMdAction(src: string, selStart: number, selEnd: number, action: MdAction): MdEditResult {
+  const len = src.length;
+  let start = Math.min(Math.max(0, selStart), len);
+  let end = Math.min(Math.max(0, selEnd), len);
+  if (start > end) [start, end] = [end, start];
+
+  const wrap = INLINE_WRAP[action];
+  if (wrap) return applyWrap(src, start, end, wrap.marker, wrap.placeholder);
+  if (action === "link") return applyLink(src, start, end);
+  if (action === "table") return applyTable(src, start, end);
+  return applyLineAction(src, start, end, action);
 }

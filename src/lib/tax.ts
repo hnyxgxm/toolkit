@@ -14,6 +14,8 @@
  *  5) 涉及政策的数据（税率表、社保基数、专项附加扣除标准）均带 dataYear / lastVerified 标注，由 UI 显式展示。
  */
 
+import { money } from "@/lib/format";
+
 export interface Rates {
   pension: number; // 养老 %
   medical: number; // 医疗 %
@@ -44,8 +46,8 @@ export const CITY_PRESETS: CityPreset[] = [
 export const TAX_THRESHOLD = 5000; // 起征点（元/月）
 export const ANNUAL_STANDARD_DEDUCTION = 60000; // 减除费用（元/年，年度汇算口径）
 
-// 月度税率表：[上限, 税率, 速算扣除数]（按月预扣的简化估算口径）
-const MONTHLY_BRACKETS: Array<[number, number, number]> = [
+// 月度税率表：[上限, 税率, 速算扣除数]（按月预扣的简化估算口径；导出供 UI 展示七级表）
+export const MONTHLY_BRACKETS: Array<[number, number, number]> = [
   [3000, 0.03, 0],
   [12000, 0.10, 210],
   [25000, 0.20, 1410],
@@ -81,17 +83,33 @@ const num = (n: number) => (Number.isFinite(n) ? n : 0);
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
+export type TaxBrackets = Array<[number, number, number]>;
+
+/** 定位应纳税所得额所处的税率档下标（taxable ≤ 上限即命中，与 findBracket 口径一致；供 UI 高亮当前档） */
+export function findBracketIndex(taxable: number, brackets: TaxBrackets = MONTHLY_BRACKETS): number {
+  const t = num(taxable);
+  for (let i = 0; i < brackets.length; i++) {
+    if (t <= brackets[i][0]) return i;
+  }
+  return brackets.length - 1;
+}
+
 export function findBracket(
   taxable: number,
-  brackets: Array<[number, number, number]> = MONTHLY_BRACKETS,
+  brackets: TaxBrackets = MONTHLY_BRACKETS,
 ): { rate: number; quick: number; label: string } {
-  for (const [hi, rate, quick] of brackets) {
-    if (taxable <= hi) {
-      return { rate, quick, label: `${(rate * 100).toFixed(0)}%` };
-    }
-  }
-  const last = brackets[brackets.length - 1];
-  return { rate: last[1], quick: last[2], label: `${(last[1] * 100).toFixed(0)}%` };
+  const [, rate, quick] = brackets[findBracketIndex(taxable, brackets)];
+  return { rate, quick, label: `${(rate * 100).toFixed(0)}%` };
+}
+
+/** 税率表第 index 档的区间文案（官方表述风格：不超过 X / 超过 X 至 Y / 超过 X） */
+export function bracketRangeLabel(brackets: TaxBrackets, index: number): string {
+  const i = Math.max(0, Math.min(index, brackets.length - 1));
+  const lo = i === 0 ? 0 : brackets[i - 1][0];
+  const hi = brackets[i][0];
+  if (hi === Infinity) return `超过 ${money(lo)} 元`;
+  if (lo === 0) return `不超过 ${money(hi)} 元`;
+  return `超过 ${money(lo)} 元至 ${money(hi)} 元`;
 }
 
 export interface TaxInput {
@@ -363,5 +381,104 @@ export function calcAnnualTax(input: AnnualTaxInput): AnnualTaxResult {
     settlement,
     refund: settlement < 0 ? r2(-settlement) : 0,
     owe: settlement > 0 ? settlement : 0,
+  };
+}
+
+/* ==================== 税前 ⇄ 税后互推 ==================== */
+
+/** 已知税前算税后直接复用 calcTax；此处补齐反向：已知税后到手，反推税前月薪（二分求解） */
+export interface ReverseCalcParams {
+  rates: Rates;
+  specialAdditional: number; // 专项附加扣除（元/月）
+  applyBaseLimit: boolean; // 是否按社保基数上下限
+  baseFloor: number;
+  baseCap: number;
+}
+
+export interface ReverseCalcResult {
+  target: number; // 目标税后到手（元/月；NaN/负数钳制为 0）
+  gross: number; // 反推税前月薪（分级精度）
+  insuranceTotal: number;
+  taxable: number;
+  bracket: { rate: number; quick: number; label: string };
+  tax: number;
+  takeHome: number; // 用反推税前正算出的税后（与目标差 < 0.01 元）
+  residual: number; // |takeHome − target|（元）
+  converged: boolean; // 是否在搜索区间内收敛（极端自定义比例导致目标不可达时为 false）
+}
+
+const REVERSE_SEARCH_WIDTH = 1e-4; // 二分终止宽度（元）
+const REVERSE_MAX_ITER = 100;
+const REVERSE_WINDOW_CENTS = 32; // 根附近逐分扫描窗口（分）；覆盖 r2 舍入抖动
+
+/**
+ * 已知税后到手，反推税前月薪。
+ * 不变式：takeHome(g) = g − 五险一金(g) − 个税(g) 关于 g 整体单调不减（r2 舍入可造成 ≤ 0.01 元
+ * 的局部抖动，由窗口扫描兜底），且 takeHome(g) ≤ g 恒成立，
+ * 故在 [0, hi] 上可二分求根；收敛后在根附近的整分（0.01 元）候选中取正算税后最接近目标者，
+ * 保证残差 < 0.01 元。五险一金与个税均为 calcTax 的完整口径（含基数封顶保底与速算扣除数）。
+ */
+export function calcGrossFromTakeHome(targetTakeHome: number, params: ReverseCalcParams): ReverseCalcResult {
+  const target = Math.max(0, num(targetTakeHome));
+  const forward = (g: number): TaxResult => calcTax({ ...params, salary: g });
+
+  // 上界：无封顶时按 10 倍目标留足余量；有封顶/固定扣除时另加基数上限 2 倍，再兜底 10 万
+  let lo = 0;
+  let hi = Math.max(target * 10, target + num(params.baseCap) * 2) + 100000;
+  const hiRes = forward(hi);
+  if (hiRes.takeHome < target) {
+    // 自定义比例极端（五险一金 + 边际税率 ≥ 100%）时目标不可达：返回上界并标记未收敛
+    return {
+      target,
+      gross: r2(hi),
+      insuranceTotal: hiRes.insuranceTotal,
+      taxable: hiRes.taxable,
+      bracket: hiRes.bracket,
+      tax: hiRes.tax,
+      takeHome: hiRes.takeHome,
+      residual: r2(Math.abs(hiRes.takeHome - target)),
+      converged: false,
+    };
+  }
+
+  let iter = 0;
+  while (hi - lo > REVERSE_SEARCH_WIDTH && iter < REVERSE_MAX_ITER) {
+    const mid = (lo + hi) / 2;
+    if (forward(mid).takeHome < target) lo = mid;
+    else hi = mid;
+    iter++;
+  }
+
+  // 分级精化：takeHome 经 r2 舍入，在保险项进位边界存在 ≤ 0.01 元的局部回落（非严格单调），
+  // 二分可能停在"提前交叉点"；在根附近 ±32 分窗口内逐分扫描，取正算税后与目标残差最小者。
+  const root = (lo + hi) / 2;
+  const rootCent = Math.max(0, Math.round(root * 100));
+  let bestCent = rootCent;
+  let bestRes = forward(bestCent / 100);
+  let bestResidual = Math.abs(bestRes.takeHome - target);
+  for (let offset = -REVERSE_WINDOW_CENTS; offset <= REVERSE_WINDOW_CENTS; offset++) {
+    const cent = Math.max(0, rootCent + offset);
+    if (cent === bestCent) continue;
+    const res = forward(cent / 100);
+    const residual = Math.abs(res.takeHome - target);
+    const closer = Math.abs(cent - rootCent) < Math.abs(bestCent - rootCent);
+    if (residual < bestResidual || (residual === bestResidual && closer)) {
+      bestResidual = residual;
+      bestCent = cent;
+      bestRes = res;
+    }
+  }
+  const bestGross = bestCent / 100;
+
+  return {
+    target,
+    gross: bestGross,
+    insuranceTotal: bestRes.insuranceTotal,
+    taxable: bestRes.taxable,
+    bracket: bestRes.bracket,
+    tax: bestRes.tax,
+    takeHome: bestRes.takeHome,
+    residual: r2(bestResidual),
+    converged: true,
   };
 }

@@ -13,6 +13,7 @@ import {
   isImageMime,
   base64ByteLength,
   formatBytes,
+  findBase64Issue,
   Base64Error,
 } from "@/lib/base64";
 
@@ -117,6 +118,62 @@ describe("base64 codec", () => {
     const r3 = tryDecodeBase64("aGVsbG8=");
     expect(r3.ok).toBe(true);
     if (r3.ok) expect(Array.from(r3.value)).toEqual([104, 101, 108, 108, 111]);
+  });
+});
+
+describe("strict validation with error offset (P1)", () => {
+  it("returns null for valid input including whitespace / no padding / url-safe", () => {
+    expect(findBase64Issue("aGVsbG8=")).toBeNull();
+    expect(findBase64Issue("aGVs bG8\n=")).toBeNull();
+    expect(findBase64Issue("SGVsbG8")).toBeNull();
+    expect(findBase64Issue("")).toBeNull();
+    expect(findBase64Issue("--____9B", { urlSafe: true })).toBeNull();
+    expect(findBase64Issue("aGVs\n\tbG8\r\n=")).toBeNull();
+  });
+
+  it("locates the first illegal character in the raw input", () => {
+    const iss = findBase64Issue("aGV\n$sbG8=");
+    expect(iss).not.toBeNull();
+    expect(iss!.offset).toBe(4);
+    expect(iss!.char).toBe("$");
+    expect(iss!.message).toContain("非法");
+    expect(iss!.message).toContain("$");
+  });
+
+  it("flags padding misuse at exact offsets", () => {
+    expect(findBase64Issue("QQ=Z")!.offset).toBe(3);
+    expect(findBase64Issue("QQ=Z")!.message).toContain("只能出现在末尾");
+    expect(findBase64Issue("QQ==Z")!.offset).toBe(4);
+    expect(findBase64Issue("QQ===")!.offset).toBe(4);
+    expect(findBase64Issue("QQ===")!.message).toContain("最多 2 个");
+  });
+
+  it("flags bad length at the last data character", () => {
+    const iss = findBase64Issue("aGVs Q");
+    expect(iss).not.toBeNull();
+    expect(iss!.offset).toBe(5);
+    expect(iss!.message).toContain("长度不正确");
+  });
+
+  it("rejects url-safe characters when standard variant is expected", () => {
+    const iss = findBase64Issue("AB-_cd");
+    expect(iss!.offset).toBe(2);
+    expect(iss!.char).toBe("-");
+    expect(findBase64Issue("AB-_cd", { urlSafe: true })).toBeNull();
+  });
+
+  it("stays consistent with decodeBase64 on the shared test corpus", () => {
+    const corpus = ["ab$cd", "!!!", "Q", "QQ=Z", "QQ==Z", "AB=C", "QQ===", "aGVsbG8=", "中中中"];
+    for (const input of corpus) {
+      const issue = findBase64Issue(input);
+      let throws = false;
+      try {
+        decodeBase64(input);
+      } catch {
+        throws = true;
+      }
+      expect(!!issue).toBe(throws);
+    }
   });
 });
 
