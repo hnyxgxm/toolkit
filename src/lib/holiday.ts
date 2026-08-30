@@ -198,7 +198,7 @@ function buildYearIndex(year: number): YearIndex {
 function buildMonthGrid(year: number, month: number, index: YearIndex): MonthGrid {
   const first = isoWeekday(`${year}-${pad2(month)}-01`);
   const total = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const len = Math.ceil((first + total) / 7) * 7;
+  const len = first + total;
   const cells: Array<CalendarCell | null> = [];
   for (let i = 0; i < len; i++) {
     if (i < first) {

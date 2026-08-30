@@ -70,6 +70,28 @@ describe("year calendar matrix (buildYearGrids)", () => {
     expect(d1.festivalStart).toBe(true);
   });
 
+  it("回归：任何月格子不得溢出当月天数（2026-03 曾渲染出 32–35）", () => {
+    for (const year of [2025, 2026, 2027]) {
+      const grids = buildYearGrids(year);
+      grids.forEach((g) => {
+        const daysInMonth = new Date(Date.UTC(year, g.month, 0)).getUTCDate();
+        expect(g.cells.length).toBeLessThanOrEqual(37);
+        for (const c of g.cells) {
+          if (!c) continue;
+          expect(c.day).toBeGreaterThanOrEqual(1);
+          expect(c.day).toBeLessThanOrEqual(daysInMonth);
+          expect(c.iso).toBe(
+            `${year}-${String(g.month).padStart(2, "0")}-${String(c.day).padStart(2, "0")}`
+          );
+        }
+      });
+    }
+    // 具体锚点：2026-03（首日周日+31天）末行只到 31，共 31 个日期格
+    const mar = buildYearGrids(2026)[2];
+    expect(mar.cells.filter(Boolean)).toHaveLength(31);
+    expect(mar.cells.at(-1)!.day).toBe(31);
+  });
+
   it("off beats weekend; makeup beats weekend; plain weekend detected", () => {
     const grids = buildYearGrids(2026);
     const feb = grids[1];
