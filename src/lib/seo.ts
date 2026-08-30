@@ -13,6 +13,12 @@ export function absUrl(path: string): string {
   return `${SITE_ORIGIN}${BASE_PATH}${p === "/" ? "" : p.replace(/\/$/, "")}/`;
 }
 
+/**
+ * 全站默认分享图（1200×630）。文件位于 public/og.png，构建后可访问 /toolkit/og.png。
+ * 注意：og.png 由主线程另行生成放入 public/，缺失时社交平台分享将无图（不影响构建）。
+ */
+export const OG_IMAGE = absUrl("/og.png");
+
 export interface ToolSeo {
   slug: string;
   title: string; // 中文标题，如 "日期计算"
@@ -38,11 +44,20 @@ export function toolMetadata(seo: ToolSeo): Metadata {
       siteName: SITE_NAME,
       type: "website",
       locale: "zh_CN",
+      images: [
+        {
+          url: seo.ogImage ? absUrl(seo.ogImage) : OG_IMAGE,
+          width: 1200,
+          height: 630,
+          alt: `${seo.title} - ${SITE_NAME}`,
+        },
+      ],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: `${seo.title} - ${SITE_NAME}`,
       description: seo.description,
+      images: [seo.ogImage ? absUrl(seo.ogImage) : OG_IMAGE],
     },
   };
 }

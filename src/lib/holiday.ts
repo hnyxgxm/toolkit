@@ -19,14 +19,20 @@ export interface HolidayYear {
   year: number;
   official: boolean;
   source: string;
+  /** 数据最后人工核对时间（YYYY-MM），与官方通知逐条核对过，后续年份不预测 */
+  lastVerified: string;
   festivals: Festival[];
 }
+
+/** 全库数据最后人工核对时间：2026-08 逐条核对国务院办公厅通知 */
+export const HOLIDAY_DATA_LAST_VERIFIED = "2026-08";
 
 export const HOLIDAY_DATA: Record<number, HolidayYear> = {
   2025: {
     year: 2025,
     official: true,
     source: "国务院办公厅关于2025年部分节假日安排的通知",
+    lastVerified: HOLIDAY_DATA_LAST_VERIFIED,
     festivals: [
       { name: "元旦", off: [["2025-01-01", "2025-01-01"]], makeup: [] },
       { name: "春节", off: [["2025-01-28", "2025-02-04"]], makeup: ["2025-01-26", "2025-02-08"] },
@@ -40,6 +46,7 @@ export const HOLIDAY_DATA: Record<number, HolidayYear> = {
     year: 2026,
     official: true,
     source: "国务院办公厅关于2026年部分节假日安排的通知（国办发明电〔2025〕7号）",
+    lastVerified: HOLIDAY_DATA_LAST_VERIFIED,
     festivals: [
       { name: "元旦", off: [["2026-01-01", "2026-01-03"]], makeup: ["2026-01-04"] },
       { name: "春节", off: [["2026-02-15", "2026-02-23"]], makeup: ["2026-02-14", "2026-02-28"] },
@@ -54,6 +61,7 @@ export const HOLIDAY_DATA: Record<number, HolidayYear> = {
     year: 2027,
     official: false,
     source: "官方安排尚未发布（通常在上年 11–12 月公布）",
+    lastVerified: HOLIDAY_DATA_LAST_VERIFIED, // 2026-08 核对：官方仍未公布
     festivals: [],
   },
 };
@@ -82,6 +90,8 @@ export interface HolidaySummary {
   year: number;
   official: boolean;
   source: string;
+  /** 数据最后人工核对时间（YYYY-MM） */
+  lastVerified: string;
   totalOffDays: number;
   totalMakeupDays: number;
   festivals: Array<{
@@ -121,6 +131,7 @@ export function getHolidaySummary(year: number): HolidaySummary | null {
     year,
     official: data.official,
     source: data.source,
+    lastVerified: data.lastVerified,
     totalOffDays: festivals.reduce((s, f) => s + f.offDays, 0),
     totalMakeupDays: festivals.reduce((s, f) => s + f.makeup.length, 0),
     festivals,

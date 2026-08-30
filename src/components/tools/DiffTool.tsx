@@ -2,55 +2,20 @@
 
 import { useMemo, useState } from "react";
 import { PageHeader, Stat, Hint } from "@/components/ui";
-
-type Line = { type: "same" | "add" | "del"; text: string; no?: number };
-
-function diffLines(a: string[], b: string[]): Line[] {
-  const n = a.length, m = b.length;
-  // LCS DP
-  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
-  for (let i = n - 1; i >= 0; i--)
-    for (let j = m - 1; j >= 0; j--)
-      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
-  const out: Line[] = [];
-  let i = 0, j = 0;
-  while (i < n && j < m) {
-    if (a[i] === b[j]) { out.push({ type: "same", text: a[i], no: ++j && i + 1 }); i++; j++; }
-    else if (dp[i + 1][j] >= dp[i][j + 1]) { out.push({ type: "del", text: a[i] }); i++; }
-    else { out.push({ type: "add", text: b[j] }); j++; }
-  }
-  while (i < n) out.push({ type: "del", text: a[i++] });
-  while (j < m) out.push({ type: "add", text: b[j++] });
-  return out;
-}
-
-const LIMIT = 2000;
+import { diffText, MAX_LINES, type DiffLine } from "@/lib/diff";
 
 export default function DiffTool() {
   const [a, setA] = useState("");
   const [b, setB] = useState("");
 
-  const { lines, stats, tooBig } = useMemo(() => {
-    const la = a.split("\n"), lb = b.split("\n");
-    if (la.length > LIMIT || lb.length > LIMIT) return { lines: [] as Line[], stats: null, tooBig: true };
-    const res = diffLines(la, lb);
-    return {
-      lines: res,
-      tooBig: false,
-      stats: {
-        same: res.filter((l) => l.type === "same").length,
-        add: res.filter((l) => l.type === "add").length,
-        del: res.filter((l) => l.type === "del").length,
-      },
-    };
-  }, [a, b]);
+  const { lines, stats, trunc } = useMemo(() => diffText(a, b), [a, b]);
 
-  const bg: Record<Line["type"], string> = {
+  const bg: Record<DiffLine["type"], string> = {
     same: "text-neutral-500",
     add: "text-emerald-400 bg-emerald-500/[0.06]",
     del: "text-red-400 bg-red-500/[0.06]",
   };
-  const sign: Record<Line["type"], string> = { same: " ", add: "+", del: "-" };
+  const sign: Record<DiffLine["type"], string> = { same: " ", add: "+", del: "-" };
 
   return (
     <div>
@@ -66,16 +31,21 @@ export default function DiffTool() {
         </div>
       </div>
 
-      {tooBig ? (
-        <Hint kind="warn">输入行数过大（&gt;{LIMIT} 行），请缩减后对比以保持流畅。</Hint>
-      ) : !a && !b ? (
+      {!a && !b ? (
         <Hint kind="info">在上方输入两段文本，实时查看差异。</Hint>
       ) : (
         <>
+          {trunc && (
+            <div className="mb-4">
+              <Hint kind="warn">
+                文本过大（单侧 &gt;{MAX_LINES} 行），已截断对比：仅对比前 {MAX_LINES} 行，以下结果不完整。
+              </Hint>
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-4 mb-4">
-            <Stat label="相同" value={stats!.same} />
-            <Stat label="新增" value={`+${stats!.add}`} tone="good" />
-            <Stat label="删除" value={`−${stats!.del}`} tone="bad" />
+            <Stat label="相同" value={stats.same} />
+            <Stat label="新增" value={`+${stats.add}`} tone="good" />
+            <Stat label="删除" value={`−${stats.del}`} tone="bad" />
           </div>
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 font-mono text-xs overflow-auto max-h-[420px]">
             {lines.map((l, idx) => (

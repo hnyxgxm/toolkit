@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getHolidaySummary, STATUTORY_HOLIDAY_DAYS } from "@/lib/holiday";
+import { getHolidaySummary, STATUTORY_HOLIDAY_DAYS, HOLIDAY_DATA_LAST_VERIFIED } from "@/lib/holiday";
 
 // 数据以国务院办公厅通知为准；这些 total 是官方口径的核对锚点。
 describe("holiday engine", () => {
@@ -25,6 +25,13 @@ describe("holiday engine", () => {
 
   it("statutory floor is a known fact", () => {
     expect(STATUTORY_HOLIDAY_DAYS).toBe(11);
+  });
+
+  it("data freshness is annotated (2026-08 核对)", () => {
+    expect(HOLIDAY_DATA_LAST_VERIFIED).toBe("2026-08");
+    for (const year of [2025, 2026, 2027]) {
+      expect(getHolidaySummary(year)!.lastVerified).toBe("2026-08");
+    }
   });
 
   it("expands ranges into concrete off-dates", () => {

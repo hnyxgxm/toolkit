@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { calcTax, CITY_PRESETS } from "@/lib/tax";
+import {
+  calcTax,
+  calcAnnualTax,
+  calcSpecialDeductions,
+  findBracket,
+  CITY_PRESETS,
+  ANNUAL_BRACKETS,
+  ANNUAL_STANDARD_DEDUCTION,
+  TAX_TABLE_META,
+  SPECIAL_DEDUCTION_STANDARDS,
+} from "@/lib/tax";
 
 const sh = CITY_PRESETS.find((c) => c.id === "shanghai")!;
 
@@ -45,5 +55,233 @@ describe("tax engine (shanghai 17.5%, no base cap)", () => {
     const b = calcTax({ ...base, salary: 25000, specialAdditional: 2000 });
     expect(b.taxable).toBe(a.taxable - 2000);
     expect(b.takeHome).toBeGreaterThan(a.takeHome);
+  });
+});
+
+/* ==================== 年度汇算 ==================== */
+
+// 年度表边界：[边界, 边界处税率, 边界处税额, 越界后税率]
+const ANNUAL_EDGES: Array<{ edge: number; rate: number; tax: number; nextRate: number }> = [
+  { edge: 36000, rate: 0.03, tax: 1080, nextRate: 0.1 },
+  { edge: 144000, rate: 0.1, tax: 11880, nextRate: 0.2 },
+  { edge: 300000, rate: 0.2, tax: 43080, nextRate: 0.25 },
+  { edge: 420000, rate: 0.25, tax: 73080, nextRate: 0.3 },
+  { edge: 660000, rate: 0.3, tax: 145080, nextRate: 0.35 },
+  { edge: 960000, rate: 0.35, tax: 250080, nextRate: 0.45 },
+];
+
+// 年度纯税率口径：收入即应纳税所得额（各项扣除与预缴均为 0）
+const annualPure = { standardDeduction: 0, socialInsurance: 0, specialAdditional: 0, otherDeduction: 0, prepaidTax: 0 };
+
+describe("年度税率表分段正确性（边界两侧）", () => {
+  for (const { edge, rate, tax, nextRate } of ANNUAL_EDGES) {
+    it(`${edge} 元：落在 ${rate} 档，税额 ${tax}`, () => {
+      const at = calcAnnualTax({ ...annualPure, annualIncome: edge });
+      expect(at.taxable).toBe(edge);
+      expect(at.bracket.rate).toBe(rate);
+      expect(at.tax).toBe(tax);
+    });
+
+    it(`${edge + 0.01} 元：税率跳至 ${nextRate}，税额连续（差 ≤ 0.01）`, () => {
+      const above = calcAnnualTax({ ...annualPure, annualIncome: edge + 0.01 });
+      const below = calcAnnualTax({ ...annualPure, annualIncome: edge });
+      expect(above.bracket.rate).toBe(nextRate);
+      expect(Math.abs(above.tax - below.tax)).toBeLessThanOrEqual(0.01);
+    });
+  }
+
+  it("超过 960000 适用 45% 档", () => {
+    const top = calcAnnualTax({ ...annualPure, annualIncome: 960000.01 });
+    expect(top.bracket.rate).toBe(0.45);
+    expect(top.tax).toBe(250080);
+  });
+
+  it("findBracket 支持年度表（速算扣除数 2520/16920/31920/52920/85920/181920）", () => {
+    expect(findBracket(36000, ANNUAL_BRACKETS)).toMatchObject({ rate: 0.03, quick: 0 });
+    expect(findBracket(144000, ANNUAL_BRACKETS)).toMatchObject({ rate: 0.1, quick: 2520 });
+    expect(findBracket(144000.01, ANNUAL_BRACKETS)).toMatchObject({ rate: 0.2, quick: 16920 });
+    expect(findBracket(300000.01, ANNUAL_BRACKETS)).toMatchObject({ rate: 0.25, quick: 31920 });
+    expect(findBracket(420000.01, ANNUAL_BRACKETS)).toMatchObject({ rate: 0.3, quick: 52920 });
+    expect(findBracket(660000.01, ANNUAL_BRACKETS)).toMatchObject({ rate: 0.35, quick: 85920 });
+    expect(findBracket(960000.01, ANNUAL_BRACKETS)).toMatchObject({ rate: 0.45, quick: 181920 });
+  });
+});
+
+describe("年度汇算：应退/应补正负", () => {
+  const base = {
+    annualIncome: 200000,
+    socialInsurance: 30000,
+    specialAdditional: 24000,
+    otherDeduction: 0,
+    standardDeduction: ANNUAL_STANDARD_DEDUCTION,
+  };
+
+  it("应纳税所得额 86000 → 税 6080；预缴 3000 → 应补 3080", () => {
+    const r = calcAnnualTax({ ...base, prepaidTax: 3000 });
+    expect(r.taxable).toBe(86000);
+    expect(r.tax).toBe(6080);
+    expect(r.settlement).toBe(3080);
+    expect(r.owe).toBe(3080);
+    expect(r.refund).toBe(0);
+  });
+
+  it("预缴 8000 > 应纳税额 → settlement 为负，应退 1920", () => {
+    const r = calcAnnualTax({ ...base, prepaidTax: 8000 });
+    expect(r.settlement).toBe(-1920);
+    expect(r.refund).toBe(1920);
+    expect(r.owe).toBe(0);
+  });
+
+  it("预缴恰好等于应纳税额 → 应退/应补均为 0", () => {
+    const r = calcAnnualTax({ ...base, prepaidTax: 6080 });
+    expect(r.settlement).toBe(0);
+    expect(r.refund).toBe(0);
+    expect(r.owe).toBe(0);
+  });
+
+  it("收入不超减除费用 → 税 0；预缴 100 → 应退 100", () => {
+    const r = calcAnnualTax({ annualIncome: 50000, prepaidTax: 100, socialInsurance: 0, specialAdditional: 0, otherDeduction: 0 });
+    expect(r.taxable).toBe(0);
+    expect(r.tax).toBe(0);
+    expect(r.settlement).toBe(-100);
+    expect(r.refund).toBe(100);
+  });
+
+  it("减除费用默认 60000，可显式覆盖", () => {
+    expect(calcAnnualTax({ ...base, prepaidTax: 0 }).standardDeduction).toBe(60000);
+    const custom = calcAnnualTax({ ...base, prepaidTax: 0, standardDeduction: 0 });
+    expect(custom.standardDeduction).toBe(0);
+    expect(custom.taxable).toBe(146000);
+  });
+});
+
+describe("专项附加扣除分类录入（2023 年国发标准）", () => {
+  const none: Parameters<typeof calcSpecialDeductions>[0] = {
+    childrenCount: 0,
+    infantCount: 0,
+    elderly: "none",
+    continuingEdu: "none",
+    medicalSelfPaid: 0,
+    housing: "none",
+    rentTier: "tier1",
+  };
+  const item = (r: ReturnType<typeof calcSpecialDeductions>, key: string) => r.items.find((x) => x.key === key)!;
+
+  it("各分类之和 = totalAnnual；按月可扣项之和 = totalMonthly", () => {
+    const r = calcSpecialDeductions({ ...none, childrenCount: 1, infantCount: 1, elderly: "shared", continuingEdu: "degree", medicalSelfPaid: 40000, housing: "rent", rentTier: "tier2" });
+    expect(r.items.reduce((s, it) => s + it.annual, 0)).toBeCloseTo(r.totalAnnual, 2);
+    expect(r.items.reduce((s, it) => s + it.monthly, 0)).toBeCloseTo(r.totalMonthly, 2);
+    expect(r.totalAnnual).toBe(109000); // 24000 + 24000 + 18000 + 4800 + 25000 + 13200
+    expect(r.totalMonthly).toBe(7000); // 2000 + 2000 + 1500 + 400 + 0 + 1100
+  });
+
+  it("子女教育 / 婴幼儿照护：2000 元/月/孩", () => {
+    const r = calcSpecialDeductions({ ...none, childrenCount: 2, infantCount: 1 });
+    expect(item(r, "childrenEducation").monthly).toBe(4000);
+    expect(item(r, "childrenEducation").annual).toBe(48000);
+    expect(item(r, "infantCare").monthly).toBe(2000);
+    expect(item(r, "infantCare").annual).toBe(24000);
+  });
+
+  it("赡养老人：独生 3000/月，非独生分摊上限 1500/月", () => {
+    const only = calcSpecialDeductions({ ...none, elderly: "only" });
+    expect(item(only, "elderly").monthly).toBe(3000);
+    expect(item(only, "elderly").annual).toBe(36000);
+    const shared = calcSpecialDeductions({ ...none, elderly: "shared" });
+    expect(item(shared, "elderly").monthly).toBe(1500);
+    expect(item(shared, "elderly").annual).toBe(18000);
+  });
+
+  it("继续教育：学历 400/月；职业资格 3600/年 且仅年度汇算可扣", () => {
+    const degree = calcSpecialDeductions({ ...none, continuingEdu: "degree" });
+    expect(item(degree, "continuingEdu").monthly).toBe(400);
+    expect(item(degree, "continuingEdu").annual).toBe(4800);
+    const cert = calcSpecialDeductions({ ...none, continuingEdu: "certificate" });
+    expect(item(cert, "continuingEdu").monthly).toBe(0);
+    expect(item(cert, "continuingEdu").annual).toBe(3600);
+    expect(item(cert, "continuingEdu").annualOnly).toBe(true);
+  });
+
+  it("大病医疗：自付超 15000 部分扣除、限额 80000、仅年度汇算", () => {
+    const partial = calcSpecialDeductions({ ...none, medicalSelfPaid: 40000 });
+    expect(item(partial, "medical").annual).toBe(25000);
+    const capped = calcSpecialDeductions({ ...none, medicalSelfPaid: 200000 });
+    expect(item(capped, "medical").annual).toBe(80000);
+    const below = calcSpecialDeductions({ ...none, medicalSelfPaid: 10000 });
+    expect(item(below, "medical").annual).toBe(0);
+    expect(item(partial, "medical").monthly).toBe(0);
+    expect(item(partial, "medical").annualOnly).toBe(true);
+  });
+
+  it("住房：房贷利息 1000/月；租金三档 1500/1100/800", () => {
+    const loan = calcSpecialDeductions({ ...none, housing: "loan", rentTier: "tier1" });
+    expect(item(loan, "housing").monthly).toBe(1000);
+    expect(item(loan, "housing").annual).toBe(12000);
+    const t1 = calcSpecialDeductions({ ...none, housing: "rent", rentTier: "tier1" });
+    const t2 = calcSpecialDeductions({ ...none, housing: "rent", rentTier: "tier2" });
+    const t3 = calcSpecialDeductions({ ...none, housing: "rent", rentTier: "tier3" });
+    expect(item(t1, "housing").monthly).toBe(1500);
+    expect(item(t2, "housing").monthly).toBe(1100);
+    expect(item(t3, "housing").monthly).toBe(800);
+  });
+});
+
+describe("非法输入（NaN/负数）不产生 NaN", () => {
+  it("年度：NaN/负数输入 → 结果全部有限，负数按 0 计", () => {
+    const r = calcAnnualTax({
+      annualIncome: NaN,
+      prepaidTax: NaN,
+      socialInsurance: -5000,
+      specialAdditional: -1000,
+      otherDeduction: NaN,
+    });
+    for (const v of [r.annualIncome, r.totalDeduction, r.taxable, r.tax, r.prepaid, r.settlement, r.refund, r.owe]) {
+      expect(Number.isFinite(v)).toBe(true);
+    }
+    expect(r.taxable).toBe(0);
+    expect(r.tax).toBe(0);
+    expect(r.settlement).toBe(0);
+  });
+
+  it("按月：NaN 薪资/扣除 → 结果全部有限", () => {
+    const r = calcTax({ rates: sh.rates, specialAdditional: NaN, applyBaseLimit: false, baseFloor: sh.baseFloor, baseCap: sh.baseCap, salary: NaN });
+    for (const v of [r.insuranceTotal, r.taxable, r.tax, r.takeHome, r.yearTakeHome]) {
+      expect(Number.isFinite(v)).toBe(true);
+    }
+    expect(r.taxable).toBe(0);
+    expect(r.tax).toBe(0);
+  });
+
+  it("分类扣除：NaN/负数孩数与自付额 → 合计有限且仅按有效项计算", () => {
+    const r = calcSpecialDeductions({ childrenCount: NaN, infantCount: -3, elderly: "shared", continuingEdu: "certificate", medicalSelfPaid: NaN, housing: "rent", rentTier: "tier3" });
+    expect(Number.isFinite(r.totalMonthly)).toBe(true);
+    expect(Number.isFinite(r.totalAnnual)).toBe(true);
+    expect(r.totalAnnual).toBe(18000 + 3600 + 9600); // 赡养(非独生) + 职业资格 + 租金800×12
+    expect(r.totalMonthly).toBe(1500 + 800);
+  });
+});
+
+describe("数据年份透明（dataYear / lastVerified）", () => {
+  it("城市预设均带 dataYear / lastVerified 标注", () => {
+    for (const c of CITY_PRESETS) {
+      expect(c.dataYear).toBeGreaterThan(2020);
+      expect(c.lastVerified).toContain("2026-08");
+    }
+  });
+
+  it("税率表标注核对时间；年度表 7 档边界与速算扣除数正确", () => {
+    expect(TAX_TABLE_META.lastVerified).toContain("2026-08");
+    expect(TAX_TABLE_META.dataYear).toBe(2026);
+    expect(ANNUAL_BRACKETS.map((b) => b[0])).toEqual([36000, 144000, 300000, 420000, 660000, 960000, Infinity]);
+    expect(ANNUAL_BRACKETS.map((b) => b[2])).toEqual([0, 2520, 16920, 31920, 52920, 85920, 181920]);
+  });
+
+  it("专项附加扣除标准为 2023 年国发提高后口径，且已标注核对时间", () => {
+    expect(SPECIAL_DEDUCTION_STANDARDS.dataYear).toBe(2023);
+    expect(SPECIAL_DEDUCTION_STANDARDS.lastVerified).toContain("2026-08");
+    expect(SPECIAL_DEDUCTION_STANDARDS.childrenEducationPerChildMonthly).toBe(2000);
+    expect(SPECIAL_DEDUCTION_STANDARDS.infantCarePerChildMonthly).toBe(2000);
+    expect(SPECIAL_DEDUCTION_STANDARDS.elderlyOnlyMonthly).toBe(3000);
+    expect(SPECIAL_DEDUCTION_STANDARDS.elderlySharedMonthlyCap).toBe(1500);
   });
 });

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PageHeader, Segmented, Stat, Hint, AssumptionNote } from "@/components/ui";
-import { getHolidaySummary, AVAILABLE_YEARS, STATUTORY_HOLIDAY_DAYS } from "@/lib/holiday";
+import { getHolidaySummary, AVAILABLE_YEARS, STATUTORY_HOLIDAY_DAYS, HOLIDAY_DATA_LAST_VERIFIED } from "@/lib/holiday";
 
 export default function HolidayTool() {
   const [year, setYear] = useState<"2025" | "2026" | "2027">("2026");
@@ -36,6 +36,7 @@ export default function HolidayTool() {
               { k: "确定事实", v: "全体公民放假节日共 11 天" },
               { k: "依据", v: "《全国年节及纪念日放假办法》" },
               { k: "连休天数", v: "取决于届时调休安排" },
+              { k: "数据核对", v: `数据核对至 ${HOLIDAY_DATA_LAST_VERIFIED}；2027 及以后年份以国务院办公厅正式通知为准，本站不预测` },
             ]}
           />
         </div>
@@ -47,7 +48,7 @@ export default function HolidayTool() {
             <Stat label="数据来源" value="国务院办公厅通知" tone="accent" />
           </div>
 
-          <Hint kind="success">✅ 本表与官方通知一致：{summary.source}</Hint>
+          <Hint kind="success">✅ 本表与官方通知一致：{summary.source}（数据核对至 {summary.lastVerified}）</Hint>
 
           <div className="space-y-3">
             {summary.festivals.map((f) => (

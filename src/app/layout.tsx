@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { JetBrains_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import { ALL_TOOLS, navLabel, SITE_ORIGIN, BASE_PATH } from "@/lib/seo";
+import { ALL_TOOLS, navLabel, SITE_ORIGIN, BASE_PATH, OG_IMAGE } from "@/lib/seo";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
@@ -27,7 +27,9 @@ export const metadata: Metadata = {
     siteName: "ToolKit",
     type: "website",
     locale: "zh_CN",
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: "ToolKit 极客工具箱" }],
   },
+  twitter: { card: "summary_large_image", images: [OG_IMAGE] },
   robots: { index: true, follow: true },
 };
 
