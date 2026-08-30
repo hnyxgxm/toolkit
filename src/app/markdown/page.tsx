@@ -1,14 +1,14 @@
 import { findTool, toolMetadata, toolJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/ui";
-import Base64Tool from "@/components/tools/Base64Tool";
+import MarkdownTool from "@/components/tools/MarkdownTool";
 
-const seo = findTool("base64")!;
+const seo = findTool("markdown")!;
 export const metadata = toolMetadata(seo);
 export default function Page() {
   return (
     <>
       <JsonLd data={toolJsonLd(seo)} />
-      <Base64Tool />
+      <MarkdownTool />
     </>
   );
 }

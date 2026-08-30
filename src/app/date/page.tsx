@@ -1,14 +1,14 @@
 import { findTool, toolMetadata, toolJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/ui";
-import Base64Tool from "@/components/tools/Base64Tool";
+import DateTool from "@/components/tools/DateTool";
 
-const seo = findTool("base64")!;
+const seo = findTool("date")!;
 export const metadata = toolMetadata(seo);
 export default function Page() {
   return (
     <>
       <JsonLd data={toolJsonLd(seo)} />
-      <Base64Tool />
+      <DateTool />
     </>
   );
 }

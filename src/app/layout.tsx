@@ -2,14 +2,33 @@ import type { Metadata } from "next";
 import { JetBrains_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
+import { ALL_TOOLS, navLabel, SITE_ORIGIN, BASE_PATH } from "@/lib/seo";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "ToolKit - 极客工具箱",
-  description: "简洁到极致的在线工具：链接转二维码、HTML反转义、JSON格式化、Base64编解码、时间戳转换。完全免费，无需注册。",
-  keywords: ["在线工具", "二维码生成", "JSON格式化", "Base64", "时间戳转换", "HTML反转义"],
+  metadataBase: new URL(SITE_ORIGIN + BASE_PATH),
+  title: {
+    default: "ToolKit - 极客工具箱",
+    template: "%s",
+  },
+  description:
+    "简洁到极致的免费在线工具箱：日期计算、法定节假日、个税测算、BMI、密码生成，以及 JSON、Base64、HTML、时间戳、Diff、Markdown、二维码等开发者工具。全部本地运算，无需注册。",
+  keywords: [
+    "在线工具", "免费工具箱", "日期计算", "个税计算器", "法定节假日", "BMI", "密码生成器",
+    "JSON格式化", "Base64", "时间戳转换", "文本对比", "二维码生成",
+  ],
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "ToolKit - 极客工具箱",
+    description: "13 个免费在线工具：日期、节假日、个税、BMI、密码、JSON、Base64、Diff 等。",
+    url: SITE_ORIGIN + BASE_PATH,
+    siteName: "ToolKit",
+    type: "website",
+    locale: "zh_CN",
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({
@@ -28,20 +47,15 @@ export default function RootLayout({
               </div>
               <span className="font-semibold text-white tracking-tight">toolkit</span>
             </Link>
-            <div className="flex items-center gap-1">
-              {[
-                { href: "/qr", label: "QR" },
-                { href: "/json", label: "JSON" },
-                { href: "/base64", label: "B64" },
-                { href: "/html", label: "HTML" },
-                { href: "/timestamp", label: "TIME" },
-              ].map((item) => (
+            <div className="hidden md:flex items-center gap-1 overflow-x-auto min-w-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {ALL_TOOLS.map((t) => (
                 <Link
-                  key={item.href}
-                  href={item.href}
-                  className="px-3 py-1.5 text-xs font-mono text-neutral-500 hover:text-white hover:bg-white/[0.05] rounded-md transition-all"
+                  key={t.slug}
+                  href={`/${t.slug}`}
+                  title={t.title}
+                  className="shrink-0 whitespace-nowrap px-2.5 py-1.5 text-xs font-mono text-neutral-400 hover:text-white hover:bg-white/[0.06] rounded-md transition-colors"
                 >
-                  {item.label}
+                  {navLabel(t.slug)}
                 </Link>
               ))}
             </div>
@@ -52,7 +66,7 @@ export default function RootLayout({
         </main>
         <footer className="relative z-10 border-t border-white/[0.06]">
           <div className="max-w-5xl mx-auto px-6 py-8 flex items-center justify-between text-xs text-neutral-600 font-mono">
-            <span>&copy; 2026 toolkit</span>
+            <span>© 2026 toolkit · 全部本地运算，数据不上传</span>
             <span className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               all systems operational
