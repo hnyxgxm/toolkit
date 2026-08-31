@@ -162,15 +162,15 @@ export default function PasswordTool() {
                 <div className="flex items-center gap-3">
                   <input
                     type="range"
-                    min={8}
-                    max={64}
+                   
+                   
                     value={qrLength}
                     onChange={(e) => setLength(e.target.value)}
                     className="flex-1 accent-violet-500"
                     aria-label="密码长度"
                   />
                   <div className="w-20">
-                    <NumberInput value={length} onChange={setLength} min={8} max={64} />
+                    <NumberInput value={length} onChange={setLength} />
                   </div>
                 </div>
               </Field>
@@ -205,8 +205,8 @@ export default function PasswordTool() {
                 <div className="flex items-center gap-3">
                   <input
                     type="range"
-                    min={4}
-                    max={6}
+                   
+                   
                     value={wordCount}
                     onChange={(e) => setWordCount(Number(e.target.value))}
                     className="flex-1 accent-violet-500"
@@ -230,7 +230,7 @@ export default function PasswordTool() {
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-mono text-neutral-500 uppercase tracking-wider">批量生成</span>
                   <div className="w-20">
-                    <NumberInput value={batchCount} onChange={setBatchCount} min={1} max={50} suffix="条" />
+                    <NumberInput value={batchCount} onChange={setBatchCount} suffix="条" />
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

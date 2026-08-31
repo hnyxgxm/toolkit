@@ -301,7 +301,7 @@ export default function JsonTool() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder='{"name":"hello","version":1}'
-            className="w-full h-[460px] px-4 py-3 rounded-xl font-mono text-sm resize-none"
+            className="w-full h-[460px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
             spellCheck={false}
           />
         </div>

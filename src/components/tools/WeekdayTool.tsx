@@ -6,7 +6,7 @@ import { weekdayInfo, weekdayInfoLines, shiftISO, monthMatrix } from "@/lib/date
 
 const CARD = "rounded-xl border border-white/[0.06] bg-white/[0.02] p-5";
 const LABEL = "block text-[11px] font-mono text-neutral-500 uppercase tracking-wider";
-const INPUT = "w-full px-4 py-2.5 rounded-xl font-mono text-sm";
+const INPUT = "w-full px-4 py-3 rounded-xl font-mono text-[15px]";
 const WEEK_HEADS = ["一", "二", "三", "四", "五", "六", "日"];
 
 /** 客户端专用（仅在 effect/事件回调中调用，不影响 hydration） */
@@ -156,7 +156,7 @@ export default function WeekdayTool() {
         <textarea
           value={batchInput}
           onChange={(e) => setBatchInput(e.target.value)}
-          rows={5}
+          rows={7}
           placeholder={"2026-01-01\n2026-08-30"}
           className={`${INPUT} resize-y leading-relaxed`}
         />

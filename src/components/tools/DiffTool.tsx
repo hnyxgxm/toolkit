@@ -215,7 +215,7 @@ export default function DiffTool() {
           <textarea
             value={a}
             onChange={(e) => setA(e.target.value)}
-            className="w-full h-[200px] px-4 py-3 rounded-xl font-mono text-sm resize-none"
+            className="w-full h-[380px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
             spellCheck={false}
             placeholder="粘贴原始文本…"
           />
@@ -235,7 +235,7 @@ export default function DiffTool() {
           <textarea
             value={b}
             onChange={(e) => setB(e.target.value)}
-            className="w-full h-[200px] px-4 py-3 rounded-xl font-mono text-sm resize-none"
+            className="w-full h-[380px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
             spellCheck={false}
             placeholder="粘贴对比文本…"
           />

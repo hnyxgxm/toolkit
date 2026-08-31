@@ -266,10 +266,20 @@ describe("非法输入（NaN/负数）不产生 NaN", () => {
 });
 
 describe("数据年份透明（dataYear / lastVerified）", () => {
-  it("城市预设均带 dataYear / lastVerified 标注", () => {
+  it("城市预设均带 dataYear / lastVerified 标注，覆盖 40+ 城市", () => {
+    expect(CITY_PRESETS.length).toBeGreaterThanOrEqual(40);
+    expect(new Set(CITY_PRESETS.map((c) => c.id)).size).toBe(CITY_PRESETS.length);
     for (const c of CITY_PRESETS) {
-      expect(c.dataYear).toBeGreaterThan(2020);
-      expect(c.lastVerified).toContain("2026-08");
+      expect(c.dataYear).toBeGreaterThanOrEqual(2025); // 仅保留近两个社保年度的数据，杜绝旧数据冒充新年度
+      expect(c.lastVerified.length).toBeGreaterThan(0);
+      expect(c.baseFloor).toBeGreaterThan(0);
+      expect(c.baseFloor).toBeLessThan(c.baseCap);
+      expect(c.rates.pension).toBe(8);
+      expect(c.rates.medical).toBe(2);
+      expect(c.rates.unemployment).toBeGreaterThanOrEqual(0.2);
+      expect(c.rates.unemployment).toBeLessThanOrEqual(0.5);
+      expect(c.rates.housing).toBeGreaterThanOrEqual(5);
+      expect(c.rates.housing).toBeLessThanOrEqual(12);
     }
   });
 

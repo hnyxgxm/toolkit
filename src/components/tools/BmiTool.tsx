@@ -98,13 +98,13 @@ export default function BmiTool() {
       {/* 输入区 */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-3">
         <Field label="身高" hint="cm，80–250" error={res.valid || !h ? undefined : "身高需在 80–250 cm"}>
-          <NumberInput value={h} onChange={setH} suffix="cm" min={80} max={250} invalid={res.valid === false && !!h} />
+          <NumberInput value={h} onChange={setH} suffix="cm" invalid={res.valid === false && !!h} />
         </Field>
         <Field label="体重" hint="kg，10–400" error={res.valid || !w ? undefined : "体重需在 10–400 kg"}>
-          <NumberInput value={w} onChange={setW} suffix="kg" min={10} max={400} invalid={res.valid === false && !!w} />
+          <NumberInput value={w} onChange={setW} suffix="kg" invalid={res.valid === false && !!w} />
         </Field>
         <Field label="年龄" hint="岁，可选">
-          <NumberInput value={age} onChange={setAge} suffix="岁" min={2} max={120} placeholder="选填" />
+          <NumberInput value={age} onChange={setAge} suffix="岁" placeholder="选填" />
         </Field>
         <Field label="性别" hint="用于腰围判断">
           <div>
@@ -120,7 +120,7 @@ export default function BmiTool() {
           </div>
         </Field>
         <Field label="腰围" hint={`可选 · 男≥${WAIST_CUTOFF_CM.male}/女≥${WAIST_CUTOFF_CM.female}cm 提示中心型肥胖`} error={res.valid || !waist ? undefined : "腰围需在 40–200 cm"}>
-          <NumberInput value={waist} onChange={setWaist} suffix="cm" min={40} max={200} placeholder="选填" invalid={res.valid === false && !!waist} />
+          <NumberInput value={waist} onChange={setWaist} suffix="cm" placeholder="选填" invalid={res.valid === false && !!waist} />
         </Field>
       </div>
 

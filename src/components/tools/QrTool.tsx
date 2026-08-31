@@ -329,7 +329,7 @@ export default function QrTool() {
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder="输入链接或任意文本"
-                  className="w-full h-28 px-4 py-3 rounded-xl font-mono text-sm resize-none"
+                  className="w-full h-36 px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
                 />
               </Field>
 
@@ -394,7 +394,7 @@ export default function QrTool() {
                   value={batchText}
                   onChange={(e) => setBatchText(e.target.value)}
                   placeholder={"https://example.com/1\nhttps://example.com/2\nhttps://example.com/3"}
-                  className="w-full h-44 px-4 py-3 rounded-xl font-mono text-sm resize-none"
+                  className="w-full h-52 px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
                 />
               </Field>
               <div className="flex items-center justify-between">
@@ -430,8 +430,8 @@ export default function QrTool() {
               <div className="flex items-center gap-3">
                 <input
                   type="range"
-                  min={128}
-                  max={512}
+                 
+                 
                   step={8}
                   value={qrSize}
                   onChange={(e) => setSize(e.target.value)}
@@ -439,7 +439,7 @@ export default function QrTool() {
                   aria-label="二维码尺寸"
                 />
                 <div className="w-20">
-                  <NumberInput value={size} onChange={(v) => setSize(v)} suffix="px" min={128} max={512} />
+                  <NumberInput value={size} onChange={(v) => setSize(v)} suffix="px" />
                 </div>
               </div>
             </Field>
@@ -447,8 +447,8 @@ export default function QrTool() {
               <div className="flex items-center gap-3">
                 <input
                   type="range"
-                  min={0}
-                  max={8}
+                 
+                 
                   step={1}
                   value={qrMargin}
                   onChange={(e) => setMargin(e.target.value)}
@@ -456,7 +456,7 @@ export default function QrTool() {
                   aria-label="静区宽度"
                 />
                 <div className="w-20">
-                  <NumberInput value={margin} onChange={setMargin} suffix="格" min={0} max={8} />
+                  <NumberInput value={margin} onChange={setMargin} suffix="格" />
                 </div>
               </div>
             </Field>

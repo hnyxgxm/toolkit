@@ -83,7 +83,7 @@ export default function HtmlTool() {
             value={rawInput}
             onChange={(e) => setRawInput(e.target.value)}
             placeholder='<div class="a">b & c</div>'
-            className="w-full h-[360px] px-4 py-3 rounded-xl font-mono text-sm resize-none"
+            className="w-full h-[360px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
             spellCheck={false}
           />
           <div className="flex items-center justify-between mt-4 mb-2">
@@ -116,7 +116,7 @@ export default function HtmlTool() {
             value={entityInput}
             onChange={(e) => setEntityInput(e.target.value)}
             placeholder="&lt;div&gt;&amp;&lt;/div&gt;"
-            className="w-full h-[360px] px-4 py-3 rounded-xl font-mono text-sm resize-none"
+            className="w-full h-[360px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
             spellCheck={false}
           />
           <div className="flex items-center justify-between mt-4 mb-2">

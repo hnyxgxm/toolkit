@@ -36,11 +36,55 @@ export interface CityPreset {
 }
 
 // 常见城市个人缴费比例（示例默认值，实际以参保地当年政策为准）
+// 基数来源：各地人社/税务部门 2025/2026 社保年度公告；2026 社保年度（2026.7 起）陆续公布，
+// 未公布省份沿用最近年度并如实标注 dataYear / lastVerified。失业个人比例未查到的按 0.5% 默认，
+// 公积金未查到的按多数企业经营中常见的 5% 档默认（UI 可编辑）。
 export const CITY_PRESETS: CityPreset[] = [
-  { id: "shanghai", name: "上海", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 7 }, baseFloor: 7384, baseCap: 36549, dataYear: 2026, lastVerified: "2026-08 核对" },
-  { id: "beijing", name: "北京", rates: { pension: 8, medical: 2, unemployment: 0.2, housing: 12 }, baseFloor: 6821, baseCap: 33891, dataYear: 2026, lastVerified: "2026-08 核对" },
-  { id: "guangzhou", name: "广州", rates: { pension: 8, medical: 2, unemployment: 0.2, housing: 5 }, baseFloor: 5500, baseCap: 27555, dataYear: 2026, lastVerified: "2026-08 核对" },
-  { id: "shenzhen", name: "深圳", rates: { pension: 8, medical: 2, unemployment: 0.3, housing: 5 }, baseFloor: 2360, baseCap: 41190, dataYear: 2026, lastVerified: "2026-08 核对" },
+  // ---- 直辖市 ----
+  { id: "beijing", name: "北京", rates: { pension: 8, medical: 2, unemployment: 0.2, housing: 12 }, baseFloor: 7270, baseCap: 36348, dataYear: 2026, lastVerified: "2026-08 公告" },
+  { id: "shanghai", name: "上海", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 7 }, baseFloor: 7546, baseCap: 37731, dataYear: 2026, lastVerified: "2026-08 公告" },
+  { id: "tianjin", name: "天津", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 5124, baseCap: 25620, dataYear: 2025, lastVerified: "2025-10 公告" },
+  { id: "chongqing", name: "重庆", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4404, baseCap: 22017, dataYear: 2025, lastVerified: "2025-09 公告" },
+  // ---- 省会 ----
+  { id: "shijiazhuang", name: "石家庄", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4076, baseCap: 20382, dataYear: 2026, lastVerified: "2026-07 公告" },
+  { id: "taiyuan", name: "太原", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4198, baseCap: 20991, dataYear: 2025, lastVerified: "2025-01 执行" },
+  { id: "huhehaote", name: "呼和浩特", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 5058, baseCap: 25290, dataYear: 2026, lastVerified: "2026-07 公告" },
+  { id: "shenyang", name: "沈阳", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4359, baseCap: 21792, dataYear: 2025, lastVerified: "2025-09 公告" },
+  { id: "changchun", name: "长春", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4393.2, baseCap: 21966, dataYear: 2025, lastVerified: "2025-07 公告" },
+  { id: "haerbin", name: "哈尔滨", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4623, baseCap: 23115, dataYear: 2026, lastVerified: "2026-07 公告" },
+  { id: "nanjing", name: "南京", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4952, baseCap: 24762, dataYear: 2025, lastVerified: "2025-09 公告" },
+  { id: "hangzhou", name: "杭州", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4986, baseCap: 25299, dataYear: 2025, lastVerified: "2025-01 执行" },
+  { id: "hefei", name: "合肥", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4311, baseCap: 21556, dataYear: 2025, lastVerified: "2025-01 执行" },
+  { id: "fuzhou", name: "福州", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4433, baseCap: 22164, dataYear: 2025, lastVerified: "2025-09 公告" },
+  { id: "nanchang", name: "南昌", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 3915, baseCap: 19575, dataYear: 2025, lastVerified: "2025-09 公告" },
+  { id: "jinan", name: "济南", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4573, baseCap: 22863, dataYear: 2026, lastVerified: "2026-07 公告" },
+  { id: "zhengzhou", name: "郑州", rates: { pension: 8, medical: 2, unemployment: 0.3, housing: 5 }, baseFloor: 3831, baseCap: 19155, dataYear: 2025, lastVerified: "2025-07 公告" },
+  { id: "wuhan", name: "武汉", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4498, baseCap: 22488, dataYear: 2025, lastVerified: "2025-09 公告" },
+  { id: "changsha", name: "长沙", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4072, baseCap: 20361, dataYear: 2025, lastVerified: "2025-01 执行" },
+  { id: "guangzhou", name: "广州", rates: { pension: 8, medical: 2, unemployment: 0.2, housing: 5 }, baseFloor: 5510, baseCap: 27549, dataYear: 2025, lastVerified: "2025-07 公告" },
+  { id: "nanning", name: "南宁", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4143, baseCap: 20715, dataYear: 2025, lastVerified: "2025-09 公告" },
+  { id: "haikou", name: "海口", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4912.8, baseCap: 24564, dataYear: 2025, lastVerified: "2025 年度数据，待更新" },
+  { id: "chengdu", name: "成都", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4588, baseCap: 22938, dataYear: 2025, lastVerified: "2025-10 执行" },
+  { id: "guiyang", name: "贵阳", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4426.05, baseCap: 22130.25, dataYear: 2026, lastVerified: "2026 年度数据（依 2025 年社平）" },
+  { id: "kunming", name: "昆明", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4357, baseCap: 21789, dataYear: 2025, lastVerified: "2025-09 公告" },
+  { id: "lasa", name: "拉萨", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 7066.2, baseCap: 35331, dataYear: 2025, lastVerified: "2025-09 公告" },
+  { id: "xian", name: "西安", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4650, baseCap: 23250, dataYear: 2025, lastVerified: "2025-09 公告" },
+  { id: "lanzhou", name: "兰州", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4403, baseCap: 22014, dataYear: 2025, lastVerified: "2025-01 执行" },
+  { id: "xining", name: "西宁", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 5289.6, baseCap: 26448, dataYear: 2025, lastVerified: "2025 基准值 8816 元推算，待复核" },
+  { id: "yinchuan", name: "银川", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4955, baseCap: 24774, dataYear: 2025, lastVerified: "2025-09 公告" },
+  { id: "wulumuqi", name: "乌鲁木齐", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 5069, baseCap: 25344, dataYear: 2025, lastVerified: "2025-09 公告" },
+  // ---- 计划单列市 ----
+  { id: "dalian", name: "大连", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4359, baseCap: 21792, dataYear: 2025, lastVerified: "2025-09 公告" },
+  { id: "qingdao", name: "青岛", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4573, baseCap: 22863, dataYear: 2026, lastVerified: "2026-07 公告" },
+  { id: "ningbo", name: "宁波", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4986, baseCap: 25299, dataYear: 2025, lastVerified: "2025-01 执行" },
+  { id: "xiamen", name: "厦门", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4043, baseCap: 22607, dataYear: 2026, lastVerified: "2026-07 公告" },
+  { id: "shenzhen", name: "深圳", rates: { pension: 8, medical: 2, unemployment: 0.3, housing: 5 }, baseFloor: 4775, baseCap: 27549, dataYear: 2025, lastVerified: "2025-07 公告" },
+  // ---- 经济强市 ----
+  { id: "suzhou", name: "苏州", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4952, baseCap: 24762, dataYear: 2025, lastVerified: "2025-09 公告" },
+  { id: "wuxi", name: "无锡", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4952, baseCap: 24762, dataYear: 2025, lastVerified: "2025-09 公告" },
+  { id: "dongguan", name: "东莞", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4775, baseCap: 27549, dataYear: 2025, lastVerified: "2025-07 公告" },
+  { id: "foshan", name: "佛山", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4775, baseCap: 27549, dataYear: 2025, lastVerified: "2025-07 公告" },
+  { id: "zhuhai", name: "珠海", rates: { pension: 8, medical: 2, unemployment: 0.5, housing: 5 }, baseFloor: 4775, baseCap: 27549, dataYear: 2025, lastVerified: "2025-07 公告" },
 ];
 
 export const TAX_THRESHOLD = 5000; // 起征点（元/月）

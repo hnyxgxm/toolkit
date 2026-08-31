@@ -5,7 +5,7 @@ import { PageHeader, Segmented, Toggle, Field, NumberInput, Stat, Hint, CopyButt
 import { diffDates, diffUnits, formatDurationCN, formatWeeksCN, shiftISO, addWorkdays, type RangeMode } from "@/lib/date";
 import { getHolidaySummary } from "@/lib/holiday";
 
-const INPUT = "w-full px-4 py-2.5 rounded-xl font-mono text-sm";
+const INPUT = "w-full px-4 py-3 rounded-xl font-mono text-[15px]";
 
 /** 客户端专用（仅在 effect/事件回调中调用，不影响 hydration） */
 function todayISO(): string {

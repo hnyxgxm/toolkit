@@ -398,7 +398,7 @@ export default function MarkdownTool() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
             onScroll={onEditorScroll}
-            className="w-full h-[520px] px-4 py-3 rounded-xl font-mono text-sm resize-none"
+            className="w-full h-[520px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
             spellCheck={false}
             placeholder="输入 Markdown…（Ctrl+B 加粗 / Ctrl+I 斜体）"
           />

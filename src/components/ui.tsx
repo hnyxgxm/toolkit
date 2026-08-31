@@ -225,9 +225,6 @@ export function Field({
 export function NumberInput({
   value,
   onChange,
-  min,
-  max,
-  step = 1,
   placeholder,
   suffix,
   invalid,
@@ -235,27 +232,40 @@ export function NumberInput({
 }: {
   value: number | string;
   onChange: (v: string) => void;
-  min?: number;
-  max?: number;
-  step?: number;
   placeholder?: string;
   suffix?: string;
   invalid?: boolean;
   /** 新增可选：附加类名，不影响既有调用 */
   className?: string;
 }) {
+  // 输入草稿：编辑中允许完全清空（显示空框），合法数字才上报；失焦时空框回落为 0。
+  // 不用 type="number"，因为浏览器会把 "1."、"-" 等中间态吞成空串。
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? String(value);
+
+  const handleChange = (raw: string) => {
+    setDraft(raw);
+    if (raw.trim() !== "" && Number.isFinite(Number(raw))) onChange(raw);
+  };
+
+  const handleBlur = () => {
+    if (draft === null) return;
+    if (draft.trim() === "") onChange("0");
+    else if (!Number.isFinite(Number(draft))) onChange(String(value));
+    setDraft(null);
+  };
+
   return (
     <div className={`relative flex items-center ${className}`}>
       <input
-        type="number"
+        type="text"
         inputMode="decimal"
-        value={value}
-        min={min}
-        max={max}
-        step={step}
+        autoComplete="off"
+        value={shown}
         placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className={`w-full px-4 py-2.5 rounded-xl font-mono text-sm pr-14 ${
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={handleBlur}
+        className={`w-full px-4 py-3 rounded-xl font-mono text-[15px] pr-14 ${
           invalid ? "border-red-500/50" : ""
         }`}
       />

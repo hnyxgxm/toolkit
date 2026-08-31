@@ -296,13 +296,13 @@ export default function TaxTool() {
         {/* 1 参保城市（仅按月模式）：select 自动带入基数上下限与默认比例 */}
         {mode === "monthly" && (
           <Card>
-            <CardTitle>① 参保城市（自动带入基数上下限与个人比例）</CardTitle>
+            <CardTitle>① 参保城市（选择自动带入参数，比例与基数均可手动修改）</CardTitle>
             <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
               <select
                 aria-label="参保城市"
                 value={cityId}
                 onChange={(e) => pickCity(e.target.value)}
-                className="w-full sm:w-auto min-w-56 px-4 py-2.5 rounded-xl font-mono text-sm bg-white/[0.03] border border-white/[0.06] text-neutral-200 cursor-pointer focus:border-blue-500 focus:outline-none"
+                className="w-full sm:w-auto min-w-56 px-4 py-3 rounded-xl font-mono text-[15px] bg-white/[0.03] border border-white/[0.06] text-neutral-200 cursor-pointer focus:border-blue-500 focus:outline-none"
               >
                 {CITY_PRESETS.map((c) => (
                   <option key={c.id} value={c.id} className="bg-neutral-900 text-neutral-200">
@@ -318,21 +318,22 @@ export default function TaxTool() {
               </span>
             </div>
 
-            {isCustom && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
-                {(["pension", "medical", "unemployment", "housing"] as const).map((k) => (
-                  <Field key={k} label={{ pension: "养老%", medical: "医疗%", unemployment: "失业%", housing: "公积金%" }[k]}>
-                    <NumberInput value={rates[k]} onChange={(v) => setRates({ ...rates, [k]: Number(v) || 0 })} suffix="%" step={0.1} />
-                  </Field>
-                ))}
-                <Field label="基数下限" hint="元/月">
-                  <NumberInput value={baseFloor} onChange={(v) => setBaseFloor(Number(v) || 0)} suffix="元" min={0} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+              {(["pension", "medical", "unemployment", "housing"] as const).map((k) => (
+                <Field key={k} label={{ pension: "养老%", medical: "医疗%", unemployment: "失业%", housing: "公积金%" }[k]}>
+                  <NumberInput value={rates[k]} onChange={(v) => setRates({ ...rates, [k]: Math.max(0, Number(v) || 0) })} suffix="%" />
                 </Field>
-                <Field label="基数上限" hint="元/月">
-                  <NumberInput value={baseCap} onChange={(v) => setBaseCap(Number(v) || 0)} suffix="元" min={0} />
-                </Field>
-              </div>
-            )}
+              ))}
+              <Field label="基数下限" hint="元/月">
+                <NumberInput value={baseFloor} onChange={(v) => setBaseFloor(Math.max(0, Number(v) || 0))} suffix="元" />
+              </Field>
+              <Field label="基数上限" hint="元/月">
+                <NumberInput value={baseCap} onChange={(v) => setBaseCap(Math.max(0, Number(v) || 0))} suffix="元" />
+              </Field>
+            </div>
+            <p className="mt-2 text-[11px] font-mono text-neutral-600">
+              比例与基数改完即时重算。公积金各地政策区间一般为 5%–12%，公司实际缴存比例以工资单为准；基数下限对应「按最低基数缴纳」。
+            </p>
 
             {/* 五险一金逐项明细（含比例与基数上下限，金额按当前税前月薪估算） */}
             <div className="mt-4 pt-3 border-t border-white/[0.04] overflow-x-auto">
@@ -378,7 +379,7 @@ export default function TaxTool() {
           <Card>
             <CardTitle>② 税前月薪</CardTitle>
             <Field label="税前月薪" hint="元/月">
-              <NumberInput value={salary} onChange={setSalary} suffix="元" min={0} invalid={isBad(salary)} />
+              <NumberInput value={salary} onChange={setSalary} suffix="元" invalid={isBad(salary)} />
             </Field>
             <div className="flex flex-wrap gap-2 mt-3">
               {QUICK.map((q) => (
@@ -393,16 +394,16 @@ export default function TaxTool() {
             <CardTitle>② 全年收入与预缴</CardTitle>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <Field label="全年累计收入" hint="并入综合所得的全部收入，元/年">
-                <NumberInput value={annualIncome} onChange={setAnnualIncome} suffix="元" min={0} invalid={isBad(annualIncome)} />
+                <NumberInput value={annualIncome} onChange={setAnnualIncome} suffix="元" invalid={isBad(annualIncome)} />
               </Field>
               <Field label="已预缴税额" hint="全年已预扣预缴个税合计，元">
-                <NumberInput value={prepaidTax} onChange={setPrepaidTax} suffix="元" min={0} invalid={isBad(prepaidTax)} />
+                <NumberInput value={prepaidTax} onChange={setPrepaidTax} suffix="元" invalid={isBad(prepaidTax)} />
               </Field>
               <Field label="专项扣除（三险一金）" hint="个人承担部分全年合计，元/年">
-                <NumberInput value={annualSocial} onChange={setAnnualSocial} suffix="元" min={0} invalid={isBad(annualSocial)} />
+                <NumberInput value={annualSocial} onChange={setAnnualSocial} suffix="元" invalid={isBad(annualSocial)} />
               </Field>
               <Field label="其他扣除" hint="年金、商业健康险等，元/年">
-                <NumberInput value={annualOther} onChange={setAnnualOther} suffix="元" min={0} invalid={isBad(annualOther)} />
+                <NumberInput value={annualOther} onChange={setAnnualOther} suffix="元" invalid={isBad(annualOther)} />
               </Field>
             </div>
             <div className="flex flex-wrap gap-2 mt-3">
@@ -430,7 +431,7 @@ export default function TaxTool() {
           <Card>
             <CardTitle right={<span className="text-[11px] font-mono text-neutral-600">与正向计算同一套五险一金 + 税率表口径</span>}>④ 税后反推税前</CardTitle>
             <Field label="目标税后到手" hint="元/月">
-              <NumberInput value={targetTakeHome} onChange={setTargetTakeHome} suffix="元" min={0} placeholder="如 15000" invalid={isBad(targetTakeHome)} />
+              <NumberInput value={targetTakeHome} onChange={setTargetTakeHome} suffix="元" placeholder="如 15000" invalid={isBad(targetTakeHome)} />
             </Field>
             {reverse && !reverse.converged && (
               <div className="mt-3">
@@ -470,10 +471,10 @@ export default function TaxTool() {
           </CardTitle>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
             <DeductionRow title="子女教育" computed={amountText("childrenEducation")} note={ded("childrenEducation").note}>
-              <NumberInput value={childrenCount} onChange={setChildrenCount} suffix="孩" min={0} invalid={isBad(childrenCount)} />
+              <NumberInput value={childrenCount} onChange={setChildrenCount} suffix="孩" invalid={isBad(childrenCount)} />
             </DeductionRow>
             <DeductionRow title="3岁以下婴幼儿照护" computed={amountText("infantCare")} note={ded("infantCare").note}>
-              <NumberInput value={infantCount} onChange={setInfantCount} suffix="孩" min={0} invalid={isBad(infantCount)} />
+              <NumberInput value={infantCount} onChange={setInfantCount} suffix="孩" invalid={isBad(infantCount)} />
             </DeductionRow>
             <DeductionRow title="赡养老人" computed={amountText("elderly")} note={ded("elderly").note}>
               <Segmented
@@ -500,7 +501,7 @@ export default function TaxTool() {
               />
             </DeductionRow>
             <DeductionRow title="大病医疗" computed={amountText("medical")} note={ded("medical").note}>
-              <NumberInput value={medicalSelfPaid} onChange={setMedicalSelfPaid} suffix="元/年" min={0} invalid={isBad(medicalSelfPaid)} />
+              <NumberInput value={medicalSelfPaid} onChange={setMedicalSelfPaid} suffix="元/年" invalid={isBad(medicalSelfPaid)} />
             </DeductionRow>
             <DeductionRow title="住房（利息/租金）" computed={amountText("housing")} note={ded("housing").note}>
               <div className="space-y-2">

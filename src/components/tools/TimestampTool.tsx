@@ -15,7 +15,7 @@ import {
 
 const CARD = "rounded-xl border border-white/[0.06] bg-white/[0.02] p-5";
 const LABEL = "block text-[11px] font-mono text-neutral-500 uppercase tracking-wider";
-const INPUT = "w-full px-4 py-2.5 rounded-xl font-mono text-sm";
+const INPUT = "w-full px-4 py-3 rounded-xl font-mono text-[15px]";
 
 /** 输出行：标签 + 值 + 逐项复制 */
 function OutputRow({ label, value }: { label: string; value: string }) {
@@ -218,7 +218,7 @@ export default function TimestampTool() {
         <textarea
           value={batchInput}
           onChange={(e) => setBatchInput(e.target.value)}
-          rows={5}
+          rows={7}
           placeholder={"1700000000\n1700000000000"}
           className={`${INPUT} resize-y leading-relaxed`}
         />
