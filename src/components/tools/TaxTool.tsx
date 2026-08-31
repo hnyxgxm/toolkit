@@ -318,7 +318,7 @@ export default function TaxTool() {
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 2xl:grid-cols-6 gap-3 mt-4">
               {(["pension", "medical", "unemployment", "housing"] as const).map((k) => (
                 <Field key={k} label={{ pension: "养老%", medical: "医疗%", unemployment: "失业%", housing: "公积金%" }[k]}>
                   <NumberInput value={rates[k]} onChange={(v) => setRates({ ...rates, [k]: Math.max(0, Number(v) || 0) })} suffix="%" />
@@ -469,7 +469,7 @@ export default function TaxTool() {
           >
             专项附加扣除 · 分类录入
           </CardTitle>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-x-6 gap-y-5">
             <DeductionRow title="子女教育" computed={amountText("childrenEducation")} note={ded("childrenEducation").note}>
               <NumberInput value={childrenCount} onChange={setChildrenCount} suffix="孩" invalid={isBad(childrenCount)} />
             </DeductionRow>

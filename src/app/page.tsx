@@ -114,7 +114,7 @@ export default function Home() {
             <span className="text-neutral-800 tabular-nums">· {group.items.length}</span>
             {q && <span className="text-neutral-700 normal-case tracking-normal">（共 {group.items.length} 个）</span>}
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
             {group.items.map((t) => (
               <Link
                 key={t.slug}
