@@ -350,6 +350,18 @@ export function AssumptionNote({ items }: { items: Array<{ k: string; v: string 
   );
 }
 
+/* ---------- 文件下载（触发浏览器保存） ---------- */
+export function downloadFile(name: string, content: BlobPart, mime: string) {
+  const url = URL.createObjectURL(new Blob([content], { type: mime }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 /* ---------- 复制按钮（带 toast） ---------- */
 export function CopyButton({ text, label = "复制" }: { text: string; label?: string }) {
   const [state, setState] = useState<"idle" | "ok" | "fail">("idle");

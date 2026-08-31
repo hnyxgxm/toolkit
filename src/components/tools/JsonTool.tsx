@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { PageHeader, Segmented, CopyButton, Hint } from "@/components/ui";
+import { PageHeader, Segmented, CopyButton, Hint, downloadFile } from "@/components/ui";
 import { copyText } from "@/lib/format";
 import {
   analyzeJson,
@@ -320,16 +320,25 @@ export default function JsonTool() {
             </div>
             <div className="flex items-center gap-1">
               {view === "text" && output && (
-                <button
-                  onClick={() => {
-                    setInput(output);
-                    setOutput("");
-                    setOutputError("");
-                  }}
-                  className="text-xs font-mono px-2.5 py-1 rounded-md text-neutral-400 hover:text-white hover:bg-white/[0.05] transition-colors"
-                >
-                  应用为输入
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      setInput(output);
+                      setOutput("");
+                      setOutputError("");
+                    }}
+                    className="text-xs font-mono px-2.5 py-1 rounded-md text-neutral-400 hover:text-white hover:bg-white/[0.05] transition-colors"
+                  >
+                    应用为输入
+                  </button>
+                  <button
+                    onClick={() => downloadFile("formatted.json", output, "application/json;charset=utf-8")}
+                    title="下载格式化后的 JSON 文件"
+                    className="text-xs font-mono px-2.5 py-1 rounded-md text-blue-400 hover:text-blue-300 hover:bg-white/[0.05] transition-colors"
+                  >
+                    导出 .json
+                  </button>
+                </>
               )}
             </div>
           </div>

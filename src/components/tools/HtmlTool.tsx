@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { PageHeader, Segmented, CopyButton, Hint, Toggle } from "@/components/ui";
+import { PageHeader, Segmented, CopyButton, Hint, Toggle, downloadFile } from "@/components/ui";
 import {
   escapeHtmlEntities,
   unescapeHtmlEntities,
@@ -90,15 +90,24 @@ export default function HtmlTool() {
             <span className="text-xs font-mono text-neutral-500 uppercase tracking-wider">转义结果</span>
             <div className="flex items-center gap-1">
               {escaped && (
-                <button
-                  onClick={() => setEntityInput(escaped)}
-                  title="把转义结果填到右栏进行反转义"
-                  className="text-xs font-mono px-2.5 py-1 rounded-md text-neutral-400 hover:text-white hover:bg-white/[0.05] transition-colors"
-                >
-                  填入右栏 →
-                </button>
+                <>
+                  <button
+                    onClick={() => setEntityInput(escaped)}
+                    title="把转义结果填到右栏进行反转义"
+                    className="text-xs font-mono px-2.5 py-1 rounded-md text-neutral-400 hover:text-white hover:bg-white/[0.05] transition-colors"
+                  >
+                    填入右栏 →
+                  </button>
+                  <CopyButton text={escaped} />
+                  <button
+                    onClick={() => downloadFile("escaped.txt", escaped, "text/plain;charset=utf-8")}
+                    title="下载转义结果（.txt）"
+                    className="text-xs font-mono px-2.5 py-1 rounded-md text-blue-400 hover:text-blue-300 hover:bg-white/[0.05] transition-colors"
+                  >
+                    导出 .txt
+                  </button>
+                </>
               )}
-              <CopyButton text={escaped} />
             </div>
           </div>
           <div className="w-full h-[max(360px,calc(100vh_-_380px))] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto font-mono text-sm whitespace-pre-wrap break-all text-neutral-300">
@@ -123,15 +132,24 @@ export default function HtmlTool() {
             <span className="text-xs font-mono text-neutral-500 uppercase tracking-wider">反转义结果</span>
             <div className="flex items-center gap-1">
               {unescaped.text && (
-                <button
-                  onClick={() => setRawInput(unescaped.text)}
-                  title="把反转义结果填到左栏进行转义"
-                  className="text-xs font-mono px-2.5 py-1 rounded-md text-neutral-400 hover:text-white hover:bg-white/[0.05] transition-colors"
-                >
-                  ← 填入左栏
-                </button>
+                <>
+                  <button
+                    onClick={() => setRawInput(unescaped.text)}
+                    title="把反转义结果填到左栏进行转义"
+                    className="text-xs font-mono px-2.5 py-1 rounded-md text-neutral-400 hover:text-white hover:bg-white/[0.05] transition-colors"
+                  >
+                    ← 填入左栏
+                  </button>
+                  <CopyButton text={unescaped.text} />
+                  <button
+                    onClick={() => downloadFile("unescaped.html", unescaped.text, "text/html;charset=utf-8")}
+                    title="下载反转义结果（.html）"
+                    className="text-xs font-mono px-2.5 py-1 rounded-md text-blue-400 hover:text-blue-300 hover:bg-white/[0.05] transition-colors"
+                  >
+                    导出 .html
+                  </button>
+                </>
               )}
-              <CopyButton text={unescaped.text} />
             </div>
           </div>
           <div className="w-full h-[max(360px,calc(100vh_-_380px))] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto font-mono text-sm whitespace-pre-wrap break-all text-neutral-300">
