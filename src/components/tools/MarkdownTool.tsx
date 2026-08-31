@@ -398,7 +398,7 @@ export default function MarkdownTool() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
             onScroll={onEditorScroll}
-            className="w-full h-[520px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
+            className="w-full h-[max(520px,calc(100vh_-_360px))] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
             spellCheck={false}
             placeholder="输入 Markdown…（Ctrl+B 加粗 / Ctrl+I 斜体）"
           />
@@ -429,7 +429,7 @@ export default function MarkdownTool() {
           <div
             ref={pvRef}
             onScroll={onPreviewScroll}
-            className="relative w-full h-[520px] px-5 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto text-sm text-neutral-300"
+            className="relative w-full h-[max(520px,calc(100vh_-_360px))] px-5 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto text-sm text-neutral-300"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         </div>

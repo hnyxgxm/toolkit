@@ -301,7 +301,7 @@ export default function JsonTool() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder='{"name":"hello","version":1}'
-            className="w-full h-[460px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
+            className="w-full h-[max(460px,calc(100vh_-_380px))] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
             spellCheck={false}
           />
         </div>
@@ -336,7 +336,7 @@ export default function JsonTool() {
 
           {view === "text" ? (
             <div className="relative">
-              <div className="w-full h-[460px] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto font-mono text-sm whitespace-pre-wrap break-all text-neutral-300">
+              <div className="w-full h-[max(460px,calc(100vh_-_380px))] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto font-mono text-sm whitespace-pre-wrap break-all text-neutral-300">
                 {outputError ? (
                   <span className="text-neutral-600">{outputError}</span>
                 ) : output ? (
@@ -352,21 +352,21 @@ export default function JsonTool() {
               )}
             </div>
           ) : hasError ? (
-            <div className="h-[460px] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-center">
+            <div className="h-[max(460px,calc(100vh_-_380px))] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-center">
               <p className="text-sm font-mono text-neutral-600">输入存在语法错误，修复后可查看树视图</p>
             </div>
           ) : tree && tree.truncated ? (
-            <div className="h-[460px] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] flex flex-col items-center justify-center gap-2 text-center px-8">
+            <div className="h-[max(460px,calc(100vh_-_380px))] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] flex flex-col items-center justify-center gap-2 text-center px-8">
               <p className="text-sm font-mono text-amber-300">数据超过 {JSON_TREE_MAX_NODES.toLocaleString("zh-CN")} 个节点，为避免卡顿已停用树视图</p>
               <p className="text-xs font-mono text-neutral-600">请切换到文本视图查看完整内容</p>
             </div>
           ) : tree?.root ? (
-            <div className="w-full h-[460px] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto">
+            <div className="w-full h-[max(460px,calc(100vh_-_380px))] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto">
               <TreeNodeRow node={tree.root} collapsed={collapsed} onToggle={toggleNode} />
               <p className="mt-3 font-mono text-[11px] text-neutral-600">提示：悬停查看类型，点击值复制；容器点击箭头折叠 / 展开</p>
             </div>
           ) : (
-            <div className="h-[460px] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-center">
+            <div className="h-[max(460px,calc(100vh_-_380px))] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-center">
               <p className="text-sm font-mono text-neutral-600">输入合法 JSON 后显示可折叠树</p>
             </div>
           )}

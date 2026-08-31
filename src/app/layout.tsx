@@ -49,7 +49,7 @@ export default function RootLayout({
     <html lang="zh-CN" className="dark">
       <body className={`${inter.variable} ${mono.variable} font-sans`}>
         <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.06] bg-[#0a0a0b]/80 backdrop-blur-xl">
-          <div className="w-full px-4 sm:px-6 lg:px-10 2xl:px-16 h-14 flex items-center justify-between gap-3">
+          <div className="w-full px-4 sm:px-6 lg:px-10 2xl:px-32 h-14 flex items-center justify-between gap-3">
             <Link href="/" className="flex items-center gap-2 group shrink-0">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold group-hover:shadow-lg group-hover:shadow-blue-500/25 transition-shadow">
                 T
@@ -62,11 +62,11 @@ export default function RootLayout({
             <MobileNav items={NAV_ITEMS} />
           </div>
         </nav>
-        <main className="relative z-10 w-full px-4 sm:px-6 lg:px-10 2xl:px-16 pt-24 pb-20">
+        <main className="relative z-10 w-full px-4 sm:px-6 lg:px-10 2xl:px-32 pt-24 pb-20">
           {children}
         </main>
         <footer className="relative z-10 border-t border-white/[0.06]">
-          <div className="w-full px-4 sm:px-6 lg:px-10 2xl:px-16 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-600 font-mono">
+          <div className="w-full px-4 sm:px-6 lg:px-10 2xl:px-32 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-600 font-mono">
             <span>© 2026 toolkit · 全部本地运算，数据不上传</span>
             <span className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>

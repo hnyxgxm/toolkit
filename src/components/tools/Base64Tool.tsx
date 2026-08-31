@@ -118,14 +118,14 @@ function TextPanel() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-xs font-mono text-neutral-500 mb-2 uppercase tracking-wider">{mode === "encode" ? "原文" : "Base64"}</label>
-          <textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder={mode === "encode" ? "输入要编码的文本，支持中文" : "输入要解码的 Base64"} className="w-full h-[420px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y" spellCheck={false} />
+          <textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder={mode === "encode" ? "输入要编码的文本，支持中文" : "输入要解码的 Base64"} className="w-full h-[max(420px,calc(100vh_-_380px))] px-4 py-3 rounded-xl font-mono text-[15px] resize-y" spellCheck={false} />
         </div>
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="text-xs font-mono text-neutral-500 uppercase tracking-wider">{mode === "encode" ? "Base64" : "解码结果"}</label>
             <CopyButton text={output} />
           </div>
-          <div className="w-full h-[420px] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto font-mono text-sm whitespace-pre-wrap break-all text-neutral-300">
+          <div className="w-full h-[max(420px,calc(100vh_-_380px))] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto font-mono text-sm whitespace-pre-wrap break-all text-neutral-300">
             {output || <span className="text-neutral-600">输入即算，结果显示在这里</span>}
           </div>
         </div>
@@ -353,7 +353,7 @@ function FileDecodePanel() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="粘贴纯 Base64 或 DataURI（如 data:image/png;base64,…）"
-          className="w-full h-[420px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
+          className="w-full h-[max(420px,calc(100vh_-_380px))] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
           spellCheck={false}
         />
       </div>

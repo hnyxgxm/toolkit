@@ -83,7 +83,7 @@ export default function HtmlTool() {
             value={rawInput}
             onChange={(e) => setRawInput(e.target.value)}
             placeholder='<div class="a">b & c</div>'
-            className="w-full h-[360px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
+            className="w-full h-[max(360px,calc(100vh_-_380px))] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
             spellCheck={false}
           />
           <div className="flex items-center justify-between mt-4 mb-2">
@@ -101,7 +101,7 @@ export default function HtmlTool() {
               <CopyButton text={escaped} />
             </div>
           </div>
-          <div className="w-full h-[360px] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto font-mono text-sm whitespace-pre-wrap break-all text-neutral-300">
+          <div className="w-full h-[max(360px,calc(100vh_-_380px))] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto font-mono text-sm whitespace-pre-wrap break-all text-neutral-300">
             {escaped || <span className="text-neutral-600">转义结果实时显示在这里</span>}
           </div>
         </div>
@@ -116,7 +116,7 @@ export default function HtmlTool() {
             value={entityInput}
             onChange={(e) => setEntityInput(e.target.value)}
             placeholder="&lt;div&gt;&amp;&lt;/div&gt;"
-            className="w-full h-[360px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
+            className="w-full h-[max(360px,calc(100vh_-_380px))] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
             spellCheck={false}
           />
           <div className="flex items-center justify-between mt-4 mb-2">
@@ -134,7 +134,7 @@ export default function HtmlTool() {
               <CopyButton text={unescaped.text} />
             </div>
           </div>
-          <div className="w-full h-[360px] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto font-mono text-sm whitespace-pre-wrap break-all text-neutral-300">
+          <div className="w-full h-[max(360px,calc(100vh_-_380px))] px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto font-mono text-sm whitespace-pre-wrap break-all text-neutral-300">
             {unescaped.text || <span className="text-neutral-600">反转义结果实时显示在这里</span>}
           </div>
         </div>

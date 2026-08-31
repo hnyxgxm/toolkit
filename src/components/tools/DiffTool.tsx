@@ -215,7 +215,7 @@ export default function DiffTool() {
           <textarea
             value={a}
             onChange={(e) => setA(e.target.value)}
-            className="w-full h-[380px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
+            className="w-full h-[max(380px,calc(100vh_-_400px))] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
             spellCheck={false}
             placeholder="粘贴原始文本…"
           />
@@ -235,7 +235,7 @@ export default function DiffTool() {
           <textarea
             value={b}
             onChange={(e) => setB(e.target.value)}
-            className="w-full h-[380px] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
+            className="w-full h-[max(380px,calc(100vh_-_400px))] px-4 py-3 rounded-xl font-mono text-[15px] resize-y"
             spellCheck={false}
             placeholder="粘贴对比文本…"
           />
@@ -320,7 +320,7 @@ export default function DiffTool() {
           {view === "split" ? (
             <div
               ref={scrollerRef}
-              className="relative rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto max-h-[560px] font-mono text-xs leading-5"
+              className="relative rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto max-h-[max(560px,calc(100vh_-_340px))] font-mono text-xs leading-5"
             >
               <div className="sticky top-0 z-10 grid grid-cols-2 bg-[#0c0c0e]/95 backdrop-blur border-b border-white/[0.06] text-[10px] uppercase tracking-wider text-neutral-500">
                 <div className="px-3 py-2 border-r border-white/[0.06]">原始 A</div>
@@ -352,7 +352,7 @@ export default function DiffTool() {
           ) : (
             <div
               ref={scrollerRef}
-              className="relative rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto max-h-[560px] font-mono text-xs leading-5"
+              className="relative rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-auto max-h-[max(560px,calc(100vh_-_340px))] font-mono text-xs leading-5"
             >
               {shownU.map((u, idx) => {
                 const tone =
