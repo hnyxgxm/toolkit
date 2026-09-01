@@ -1,4 +1,5 @@
-User-agent: *
+User-Agent: *
 Allow: /
 
+Host: https://hnyxgxm.github.io/toolkit
 Sitemap: https://hnyxgxm.github.io/toolkit/sitemap.xml

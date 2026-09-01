@@ -1,87 +1,87 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/qr/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/json/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/base64/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/html/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/timestamp/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/diff/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/markdown/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/date/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/holiday/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/weekday/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/bmi/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/password/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://hnyxgxm.github.io/toolkit/tax/</loc>
-    <lastmod>2026-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>monthly</changefreq>
+<priority>1</priority>
+</url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/json/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/base64/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/html/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/timestamp/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/diff/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/markdown/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/qr/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/date/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/weekday/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/holiday/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/tax/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/bmi/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://hnyxgxm.github.io/toolkit/password/</loc>
+<lastmod>2026-09-01T11:49:33.633Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
 </urlset>
