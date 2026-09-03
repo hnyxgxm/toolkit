@@ -14,7 +14,7 @@ const NAV_ITEMS: NavItem[] = ALL_TOOLS.map((t) => ({
   title: t.title,
 }));
 
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-XXXXXXXXXX";
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-KPBRLPDRN9";
 
 const JSON_LD = {
   "@context": "https://schema.org",
