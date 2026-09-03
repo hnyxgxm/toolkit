@@ -14,6 +14,19 @@ const NAV_ITEMS: NavItem[] = ALL_TOOLS.map((t) => ({
   title: t.title,
 }));
 
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-XXXXXXXXXX";
+
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "ToolKit - 极客工具箱",
+  url: SITE_ORIGIN + BASE_PATH + "/",
+  description: "简洁到极致的免费在线工具箱：日期计算、法定节假日、个税测算、BMI、密码生成，以及 JSON、Base64、HTML、时间戳、Diff、Markdown、二维码等开发者工具。全部本地运算，无需注册。",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Web Browser",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "CNY" },
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN + BASE_PATH),
   title: {
@@ -47,6 +60,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" className="dark">
+      <head>
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');`,
+          }}
+        />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
+      </head>
       <body className={`${inter.variable} ${mono.variable} font-sans`}>
         <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.06] bg-[#0a0a0b]/80 backdrop-blur-xl">
           <div className="w-full px-4 sm:px-6 lg:px-10 2xl:px-64 h-14 flex items-center justify-between gap-3">
