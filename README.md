@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ToolKit · 极客工具箱
 
-## Getting Started
+13 个免费在线工具，打开就用：无需注册、无需下载，计算全部在浏览器本地完成。
 
-First, run the development server:
+**在线地址：<https://hnyxgxm.github.io/toolkit/>**
+
+| 分类 | 工具 |
+|---|---|
+| 日期与假期 | [日期计算](https://hnyxgxm.github.io/toolkit/date/) · [工作日推算](https://hnyxgxm.github.io/toolkit/weekday/) · [法定节假日](https://hnyxgxm.github.io/toolkit/holiday/) |
+| 钱与身体 | [个税测算](https://hnyxgxm.github.io/toolkit/tax/) · [BMI](https://hnyxgxm.github.io/toolkit/bmi/) |
+| 开发者 | [JSON](https://hnyxgxm.github.io/toolkit/json/) · [Base64](https://hnyxgxm.github.io/toolkit/base64/) · [HTML 实体](https://hnyxgxm.github.io/toolkit/html/) · [时间戳](https://hnyxgxm.github.io/toolkit/timestamp/) · [Diff](https://hnyxgxm.github.io/toolkit/diff/) · [Markdown](https://hnyxgxm.github.io/toolkit/markdown/) |
+| 其他 | [密码生成](https://hnyxgxm.github.io/toolkit/password/) · [二维码](https://hnyxgxm.github.io/toolkit/qr/) |
+
+## 数据去哪了
+
+你输入的内容不发往任何服务器——没有后端接口，所有换算都在本页面的 JavaScript 里跑完。
+统计只有 Google Analytics 的匿名访问计数（页面浏览、滚动深度），用来判断哪个工具值得继续维护。
+
+## 技术栈
+
+Next.js 15 + React 19，`output: "export"` 静态导出，`basePath: "/toolkit"`，产物是纯静态文件，
+托管在 GitHub Pages。没有服务端运行时，也没有数据库。
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000/toolkit
+npm run build    # 静态导出
+npm run test     # vitest
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 许可
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+仓库内没有 LICENSE 文件，即 **保留所有权利**。
